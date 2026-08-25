@@ -1,0 +1,10 @@
+{
+  "id": "blackboard-text",
+  "name": "Blackboard (Text fork)",
+  "version": "1.2.2-text.1",
+  "minAppVersion": "1.6.6",
+  "description": "Fork of Blackboard by James Wolensky, adding a text tool, Q/E/T hotkeys and performance fixes. Draw with native stylus and Apple Pencil directly in Canvas nodes and Markdown embeds.",
+  "author": "Tatyana (fork of James Wolensky's Blackboard)",
+  "authorUrl": "https://github.com/jameswolensky",
+  "isDesktopOnly": false
+}

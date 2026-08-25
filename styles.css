@@ -1,0 +1,368 @@
+.blackboard-drawing-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.blackboard-static,
+.blackboard-active {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.blackboard-active {
+  background: transparent;
+  pointer-events: auto;
+}
+
+.blackboard-static {
+  pointer-events: none;
+}
+
+.blackboard-embedded-drawing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* min-height is deliberately below the 160px minimum of an area-selection insert: a 200px
+   floor silently stretched the smallest drawing area the user is allowed to drag. */
+.blackboard-embed {
+  position: relative;
+  min-width: 150px;
+  min-height: 100px;
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+/* Resize handles (embed.ts attachResizeHandles): hit targets only, shown on hover or while
+   dragging. The class names are `blackboard-resize-handle <direction>`, one per entry of
+   RESIZE_DIRECTIONS in embed-resize.ts. */
+.blackboard-resize-handle {
+  position: absolute;
+  z-index: 30;
+  opacity: 0;
+  touch-action: none;
+  user-select: none;
+}
+
+.blackboard-embed:hover .blackboard-resize-handle,
+.blackboard-embed.blackboard-resizing .blackboard-resize-handle { opacity: 1; }
+
+/* Accent outline that shows the resizable box; never intercepts pointer input. */
+.blackboard-embed:hover::after,
+.blackboard-embed.blackboard-resizing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border: 1px solid var(--interactive-accent);
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.75;
+}
+
+.blackboard-resize-handle.top,
+.blackboard-resize-handle.bottom { left: 14px; right: 14px; height: 10px; cursor: ns-resize; }
+.blackboard-resize-handle.top { top: 0; }
+.blackboard-resize-handle.bottom { bottom: 0; }
+.blackboard-resize-handle.left,
+.blackboard-resize-handle.right { top: 14px; bottom: 14px; width: 10px; cursor: ew-resize; }
+.blackboard-resize-handle.left { left: 0; }
+.blackboard-resize-handle.right { right: 0; }
+.blackboard-resize-handle.top-left,
+.blackboard-resize-handle.top-right,
+.blackboard-resize-handle.bottom-left,
+.blackboard-resize-handle.bottom-right { width: 16px; height: 16px; }
+.blackboard-resize-handle.top-left { top: 0; left: 0; cursor: nwse-resize; }
+.blackboard-resize-handle.top-right { top: 0; right: 0; cursor: nesw-resize; }
+.blackboard-resize-handle.bottom-left { bottom: 0; left: 0; cursor: nesw-resize; }
+.blackboard-resize-handle.bottom-right { bottom: 0; right: 0; cursor: nwse-resize; }
+
+/* Invisible probe used to measure env(safe-area-inset-bottom) (GlobalToolbar.measureSafeBottom). */
+.blackboard-safe-area-probe {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: env(safe-area-inset-bottom);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.blackboard-global-toolbar {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: clamp(2px, 0.6vw, 4px);
+  padding: 6px clamp(6px, 1.2vw, 10px);
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 28px;
+  /* Cheap shadow: the toolbar's left/top are rewritten on every resize /
+     visualViewport scroll / layout-change, and a wide blur makes each of those
+     moves an expensive repaint. */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button.blackboard-gt-btn.blackboard-gt-btn.blackboard-gt-btn {
+  /* iOS/WKWebView applies native button styling that overrides width/height/
+     border-radius — reset it so the flat radius below holds on WKWebView too. */
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(34px, 7vw, 42px);
+  height: clamp(34px, 7vw, 42px);
+  min-width: clamp(34px, 7vw, 42px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  /* Obsidian's native `button` box-shadow (--input-shadow) otherwise bleeds through the
+     reset above, drawing a rounded-box shadow around every flat toolbar button. */
+  box-shadow: none;
+  /* Flat tool buttons (pen/highlighter/eraser/undo/redo/insert/collapse): a small
+     radius, matching Obsidian's native controls. Only the color swatches and the
+     rainbow color well (.blackboard-gt-swatch) stay circular. */
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.blackboard-global-toolbar .blackboard-gt-btn svg {
+  width: clamp(20px, 4.6vw, 24px);
+  height: clamp(20px, 4.6vw, 24px);
+}
+button.blackboard-gt-btn.blackboard-gt-btn.blackboard-gt-btn:hover { background: var(--background-modifier-hover); }
+/* The SELECTED tool reads as a circular accent chip; unselected buttons stay flat. */
+button.blackboard-gt-btn.blackboard-gt-btn.blackboard-gt-btn.active {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+  border-radius: 50%;
+}
+button.blackboard-gt-btn.blackboard-gt-btn.blackboard-gt-btn:disabled { opacity: 0.4; cursor: default; }
+
+.blackboard-global-toolbar .blackboard-gt-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--background-modifier-border);
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+button.blackboard-gt-swatch.blackboard-gt-swatch.blackboard-gt-swatch {
+  /* See .blackboard-gt-btn: reset native iOS button styling so swatches stay
+     perfectly circular on WKWebView. */
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--background-modifier-border);
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+button.blackboard-gt-colorwell.blackboard-gt-colorwell.blackboard-gt-colorwell {
+  position: relative;
+  width: clamp(30px, 6.5vw, 36px);
+  height: clamp(30px, 6.5vw, 36px);
+  min-width: clamp(30px, 6.5vw, 36px);
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+/* No-surface state: the color well is disabled until a drawing is active. */
+button.blackboard-gt-colorwell.blackboard-gt-colorwell.blackboard-gt-colorwell:disabled { opacity: 0.4; cursor: default; }
+
+.blackboard-gt-popover {
+  position: fixed;
+  z-index: 1001;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+}
+.blackboard-gt-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 28px);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.blackboard-gt-wheel { display: flex; justify-content: center; }
+
+.blackboard-gt-popover-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-align: center;
+}
+.blackboard-gt-size-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+button.blackboard-gt-size-dot.blackboard-gt-size-dot.blackboard-gt-size-dot {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button.blackboard-gt-size-dot.blackboard-gt-size-dot.blackboard-gt-size-dot:hover { background: var(--background-modifier-hover); }
+/* Selected size dot gets the same purple accent fill as the selected tool button
+   (.blackboard-gt-btn.active), so the chosen brush size reads as selected (QA3). */
+button.blackboard-gt-size-dot.blackboard-gt-size-dot.blackboard-gt-size-dot.active { background: var(--interactive-accent); }
+.blackboard-gt-size-dot-inner { background: var(--text-normal); border-radius: 50%; }
+
+/* The Text button renders a text glyph, not an SVG, so the `.blackboard-gt-btn svg` sizing
+   rule cannot apply to it — match the optical size of its SVG siblings here. */
+button.blackboard-gt-btn.blackboard-gt-btn.blackboard-gt-btn[data-bb-text-tool] {
+  font-family: var(--font-interface);
+  font-size: clamp(19px, 4.4vw, 23px);
+  font-weight: 600;
+  line-height: 1;
+}
+/* On the accent fill, the inner dot switches to the on-accent colour to stay visible. */
+button.blackboard-gt-size-dot.blackboard-gt-size-dot.blackboard-gt-size-dot.active .blackboard-gt-size-dot-inner { background: var(--text-on-accent); }
+
+.blackboard-global-toolbar-pill {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  color: var(--text-normal);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.blackboard-global-toolbar-pill svg { width: 28px; height: 28px; }
+
+/* Temporary overlay used only by Blackboard: Draw drawing area. */
+.blackboard-area-selecting .cm-scroller,
+.blackboard-area-selecting .cm-content {
+  cursor: crosshair;
+}
+
+.blackboard-area-selection-preview {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  box-sizing: border-box;
+  pointer-events: none;
+  border: 2px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+  /* Moved with transform on every pointermove, so each frame is compositor-only. */
+  will-change: transform;
+}
+
+/* Drag is below the minimum drawing size: the created drawing will be larger
+   than the rectangle shown. */
+.blackboard-area-selection-preview.is-below-min {
+  border-style: dashed;
+  border-color: var(--text-muted);
+}
+
+.blackboard-area-selection-preview::after {
+  content: attr(data-size);
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.blackboard-text-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blackboard-text-item,
+.blackboard-text-editor {
+  position: absolute;
+  z-index: 7;
+  margin: 0;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-text);
+  line-height: 1.25;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.blackboard-text-item {
+  min-width: 8px;
+  min-height: 1.25em;
+}
+
+/* Labels only become interactive while the text tool is active; otherwise a stylus
+   drag across a label would start a text selection instead of a stroke. */
+.blackboard-text-layer.is-text-mode .blackboard-text-item {
+  pointer-events: auto;
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+/* The selected label: the one Delete/Backspace acts on. Outlined rather than filled so the
+   label's own colour stays readable on any board background. */
+.blackboard-text-item.is-selected {
+  outline: 1px dashed var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.blackboard-text-editor {
+  pointer-events: auto;
+  resize: none;
+  outline: 1px solid var(--interactive-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--background-primary) 88%, transparent);
+  overflow: hidden;
+}

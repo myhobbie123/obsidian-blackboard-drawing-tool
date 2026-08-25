@@ -1,0 +1,22 @@
+Blackboard (Text fork)
+======================
+
+This plugin is a fork of **Blackboard** by James Wolensky, at upstream version
+1.2.1 (https://github.com/jameswolensky/obsidian-blackboard).
+
+Upstream work is Copyright (c) James Wolensky and is distributed under the MIT
+License; the full text is in LICENSE and applies unchanged to this fork.
+
+Fork additions (text tool with a `.blackboard-text.json` sidecar, Q/E/T tool
+hotkeys, drag-a-rectangle drawing-area insertion, and a set of rendering and
+input performance fixes) are Copyright (c) Tatyana and are released under the
+same MIT License.
+
+The fork changes the plugin id to `blackboard-text` so it can be installed
+alongside upstream Blackboard. The `.blackboard` file extension, the
+`blackboard-view` view type and every `blackboard-*` CSS class are deliberately
+unchanged, so drawings remain interchangeable with upstream.
+
+Bundled third-party code:
+  - perfect-freehand (MIT), Steve Ruiz
+  - iro.js (MPL 2.0), James Daniel
