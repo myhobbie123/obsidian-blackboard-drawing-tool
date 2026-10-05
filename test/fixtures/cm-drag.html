@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Offline CodeMirror board grab</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+:root { --background-secondary: #252932; --text-normal: #fff; --interactive-accent: #8a5cf5; --radius-m: 6px; --size-4-2: 8px; }
+body { margin: 20px; background: #202020; color: #ddd; }
+#editor { width: 760px; }
+.cm-editor { height: 620px; border: 1px solid #888; }
+.cm-scroller { overflow: auto; }
+.cm-content { font: 16px/24px monospace; padding: 16px; }
+.mock-board { display: inline-block; vertical-align: middle; width: 240px; height: 110px; background: #080808; border: 1px solid #888; }
+.mock-board .bb-frame-controls { opacity: 1; pointer-events: auto; }
+.mock-board .blackboard-drawing-container { position: absolute; display: block; top: 60px; height: 50px; font-size: 10px; }
+</style></head><body><div id="editor"></div><script src="../../release/drag-fixture/cm-drag.js"></script></body></html>

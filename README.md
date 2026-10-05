@@ -35,11 +35,25 @@ Screenshots are from the original Blackboard; the fork's UI differs slightly.
 
 ## Moving and wrapping boards
 
-Hover or focus a board to reveal its frame controls (always visible on touch screens). In **Live Preview**, drag the grip to move the embed token between top-level blocks. A horizontal indicator marks a valid drop. The pane scrolls near its edges; **Escape** cancels. **Move up / Move down** buttons and commands move one block at a time. For an inline board, the first press extracts it above/below the **whole containing top-level block** (the whole list or callout). Later presses cross one block. Commands have no default hotkeys. In **Source mode**, put the cursor inside the board's embed token, especially when two embeds share a line.
+Hover or focus a board to reveal four frame controls: **grip**, **Center**, **Left**, and **Right**. In **Live Preview**, hold the 32px grip and move at least **4px**, or **Alt+press anywhere on the board** to grab without drawing. A semi-transparent outline follows the mouse at the original grab offset. The insertion caret shows the exact line boundary: the upper half of the visual text line selects before that Markdown line; the lower half selects after it. Release to place the board. The pane auto-scrolls near its edges; **Escape** cancels.
 
-Inline boards in paragraphs, nested list items and blockquotes/callouts are supported, including glued pairs such as `Text.![[A.blackboard]]![[B.blackboard]]`. Moving extracts just the selected token; it removes exactly one adjacent space (preferring the preceding space) and preserves punctuation and the other embed. **Put on its own line** extracts after the whole containing block; use its frame button, grip context menu, or **Blackboard: put board on its own line** command. Selecting left/right on an inline board extracts **before** the containing block and writes its layout in one transaction, so the following text can wrap. Center changes the alias in place.
+Drop slots include the top of the note after properties, the end, every list item (including nested and numbered items), and every paragraph line. In a list, the board becomes a continuation of the previous item, using that item's content indentation. No extra marker or blank line is inserted, so numbering continues:
 
-Code (including backticks), note properties/frontmatter, tables, enclosing link/wiki syntax and unresolved duplicate occurrences are refused with an actionable Notice. Unsupported opaque Markdown (for example HTML blocks or an unclosed code fence) still causes a conservative refusal. Drops inside protected blocks or another embed line are refused. Whole lists, tables and code blocks can be crossed without splitting their content. A move, extraction, combined extraction/layout change or resize is one isolated editor undo step; moving to the same place writes nothing. Resize and layout changes require an editable note; Reading-view controls are read-only. Canvas nodes have none of the move or wrap controls.
+```md
+- First item
+  ![[Drawing.blackboard|right|300]]
+- Next item
+```
+
+Elsewhere, the embed occupies its own line. Each adjacent nonempty block gets exactly one blank separator if a blank line is not already present. Dropping between paragraph lines adds a blank line on each side of the board; the paragraph becomes two paragraphs around it. Existing blank gaps count as separation. The note's LF/CRLF format and final-newline policy are retained.
+
+Only the selected embed token is extracted, including from prose, list items, quotes and glued pairs such as `Text.![[A.blackboard]]![[B.blackboard]]`. Extraction removes one adjacent ASCII space (preferring the preceding space), preserves punctuation and other tokens, trims trailing source-line whitespace, removes a vacated board line or empty list item, and collapses its adjacent blank lines to at most one. An empty parent list item with children is refused rather than orphaning its children. Dropping a board already on its own line into its current gap writes nothing. Every successful move is one isolated editor transaction and one undo.
+
+Pointer targets inside frontmatter, fenced/indented code, tables and math blocks are refused with a Notice. Source code (including backticks), enclosing links, mixed line endings, unresolved identical occurrences and unsupported opaque syntax also refuse without a write. Whole protected blocks can be crossed. Canvas boards have no note placement controls. Reading view does not move boards; use Live Preview. Reading-view wrap controls stay clickable and explain how to switch to editing.
+
+**Move board up/down** commands remain available without default hotkeys; these retain their previous top-level block semantics. In Source mode put the cursor inside the selected embed token. **Put on its own line** is available only by right-clicking the grip, and retains extraction after the containing block. Selecting left/right on an inline board still extracts before the containing block and writes the layout in the same transaction; Center changes the alias in place.
+
+For diagnostics only, set `"debugDrag": true` in the plugin's settings JSON. It defaults off and has no settings UI. The console records `[bb-drag]` acceptance/refusal, pointer capture, first movement, slot line numbers and drop results. Turn it off after diagnosis.
 
 Use **Center**, **Board left, text on the right**, or **Board right, text on the left** in the frame. Layout and size are separate pipe-delimited alias tokens:
 
@@ -83,7 +97,7 @@ npm run build
 npm run check
 ```
 
-`npm run check` runs typechecking, lint, unit tests, and a production build. The build writes the ignored root `main.js` with the license and third-party notices retained; `manifest.json` and `styles.css` are shipped directly from the repository. Development builds include a local reload bridge; production builds exclude it.
+`npm run check` runs typechecking, lint, unit tests, the real CodeMirror drag harness in installed Chromium, and a production build. The offline harness uses Playwright mouse events and writes evidence to ignored `release/drag-fixture/`; run it alone with `npm run test:drag`. Set `CHROME_PATH` if Chromium is installed outside the standard Chrome location. No browser download or local HTTP server is used. The build writes the ignored root `main.js` with the license and third-party notices retained; `manifest.json` and `styles.css` are shipped directly from the repository. Development builds include a local reload bridge; production builds exclude it.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local development.
 

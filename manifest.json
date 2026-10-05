@@ -1,9 +1,9 @@
 {
   "id": "blackboard-text",
   "name": "Blackboard Drawing Tool",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "minAppVersion": "1.6.6",
-  "description": "Handwriting and drawing boards inside your notes: pen, shapes, text, selection, move boards up/down, and wrap note text around boards in Reading view.",
+  "description": "Handwriting and drawing boards inside your notes: pen, shapes, text, selection, free drag-and-drop placement, and text wrap.",
   "author": "Tatyana",
   "authorUrl": "https://github.com/myhobbie123",
   "isDesktopOnly": false

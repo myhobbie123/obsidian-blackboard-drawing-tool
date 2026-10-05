@@ -10,6 +10,7 @@ const checks = [
   ['new Function', /\bnew\s+Function\b/],
   ['localhost', /localhost/i],
   ['personal paths', /(?:[A-Z]:[/\\]+(?:Users|AI|ObsidianVaults|Recovery_Backups)|Tania|\/Users\/|\/home\/)/i],
+  ['dev-only drag harness', /playwright|chromium\.launch|cm-drag|legacy-controls|ChangeSet|StateField|Decoration\.set/],
 ];
 let failed = false;
 for (const [name, pattern] of checks) {
