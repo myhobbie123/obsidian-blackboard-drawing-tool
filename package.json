@@ -1,7 +1,7 @@
 {
   "name": "blackboard-text",
-  "version": "1.2.2-text.1",
-  "description": "Fork of Blackboard by James Wolensky, adding a text tool, Q/E/T hotkeys and performance fixes.",
+  "version": "1.3.0",
+  "description": "Handwriting and drawing boards inside your notes: pen, shapes, text tool, selection, Q/E/T shortcuts. Fork of Blackboard by James Wolensky with fixes for board wipe on empty load and invisible strokes.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -13,13 +13,10 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
     "preversion": "npm run check",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
-    "postversion": "git push --follow-tags origin HEAD",
     "release:patch": "npm version patch -m \"release: %s\"",
     "release:minor": "npm version minor -m \"release: %s\"",
     "release:major": "npm version major -m \"release: %s\"",
     "scan": "eslint src && node scripts/scan-guards.mjs",
-    "test:e2e": "wdio run wdio.desktop.conf.mts",
-    "test:e2e:mobile": "wdio run wdio.mobile.conf.mts",
     "lint": "eslint src"
   },
   "keywords": [
@@ -32,7 +29,7 @@
     "canvas",
     "ipad"
   ],
-  "author": "Tatyana (fork of James Wolensky's Blackboard)",
+  "author": "Tatyana",
   "license": "MIT",
   "engines": {
     "node": ">=24"

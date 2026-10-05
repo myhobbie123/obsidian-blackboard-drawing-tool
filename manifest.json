@@ -1,10 +1,10 @@
 {
   "id": "blackboard-text",
-  "name": "Blackboard (Text fork)",
-  "version": "1.2.2-text.1",
+  "name": "Blackboard Text",
+  "version": "1.3.0",
   "minAppVersion": "1.6.6",
-  "description": "Fork of Blackboard by James Wolensky, adding a text tool, Q/E/T hotkeys and performance fixes. Draw with native stylus and Apple Pencil directly in Canvas nodes and Markdown embeds.",
-  "author": "Tatyana (fork of James Wolensky's Blackboard)",
-  "authorUrl": "https://github.com/jameswolensky",
+  "description": "Handwriting and drawing boards inside your notes: pen, shapes, text tool, selection, Q/E/T shortcuts. Fork of Blackboard by James Wolensky with fixes for board wipe on empty load and invisible strokes.",
+  "author": "Tatyana",
+  "authorUrl": "https://github.com/myhobbie123",
   "isDesktopOnly": false
 }

@@ -4,8 +4,12 @@
 *.js.map
 coverage/
 data.json
-main.js
+/main.js
 node_modules/
+release/
+*.log
+.env*
+Thumbs.db
 test/e2e/artifacts/
 test/e2e/screenshots/
 test/webkit/_run.html
