@@ -56,6 +56,6 @@ esbuild.build({
   minify: prod,
   // Keep license terms and third-party notices with the installable asset.
   banner: {
-    js: `/*\n${readFileSync("LICENSE", "utf8")}\n${readFileSync("NOTICE", "utf8")}*/`,
+    js: `/*\n${readFileSync("LICENSE", "utf8").replace(/\r\n/g, "\n")}\n${readFileSync("NOTICE", "utf8").replace(/\r\n/g, "\n")}*/`,
   },
 }).catch(() => process.exit(1));
