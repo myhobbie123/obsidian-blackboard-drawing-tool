@@ -12,7 +12,7 @@ const walk = (dir) => {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) {
-      if (!p.includes("src/dev")) walk(p);
+      if (!p.replace(/\\/g, "/").includes("src/dev")) walk(p);
     } else if (p.endsWith(".ts")) tsFiles.push(p);
   }
 };
@@ -21,7 +21,7 @@ walk("src");
 const bare = [];
 for (const f of tsFiles) {
   readFileSync(f, "utf8").split("\n").forEach((line, i) => {
-    const code = line.replace(/\/\/.*$/, "");
+    const code = line.replace(/\/\/.*/, "").replace(/\/\*.*?\*\//g, "");
     if (code.trim().startsWith("*")) return; // block-comment prose
     if (/(?<![\w.$])document\./.test(code)) bare.push(`${f}:${i + 1}: ${line.trim()}`);
   });
