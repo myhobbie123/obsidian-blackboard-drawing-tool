@@ -67,5 +67,8 @@ describe('planEmbedMove', () => {
   });
   it('refuses unsupported opaque Markdown rather than guessing', () => {
     expect(planEmbedMove(`${board}\n\n<div>\ntext\n</div>`, 0, 2)).toBeNull();
+    expect(planEmbedMove(`${board}\n\n\x60\x60\x60\nunterminated`, 0, 2)).toBeNull();
+    expect(planEmbedMove(`${board}\n\n$$\nequation\n$$`, 0, 2)).toBeNull();
+    expect(planEmbedMove(`<!--\n\n${board}\n\n-->`, 0, 0)).toBeNull();
   });
 });

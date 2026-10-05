@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Offline CSS float prototype — not an Obsidian runtime test</title>
+<style>
+  body { font-family: sans-serif; max-width: 700px; margin: 2em auto; }
+  .cm-content { border: 1px solid; padding: 1em; display: flow-root; }
+  .cm-embed-block { display: block; }
+  .blackboard-embed { float: left; width: 300px; height: 200px; margin: 0 1em 1em 0; border: 1px solid; }
+  .cm-line { white-space: pre-wrap; }
+</style>
+<h1>Live Preview float prototype</h1>
+<p>This isolated DOM experiment applies a float inside a block widget. It uses no
+  CodeMirror engine and cannot validate cursor mapping, editing, height measurement,
+  scrolling, selection or undo. The shipped plugin uses the centered fallback.</p>
+<div class="markdown-source-view">
+  <div class="cm-content" contenteditable="true">
+    <div class="cm-embed-block" contenteditable="false"><div class="blackboard-embed">Board widget</div></div>
+    <div class="cm-line">Adjacent editable paragraph. Floating the widget changes visual text flow, while the editor's source lines and block-widget boundaries are unchanged. A real CM6 integration needs cursor and height-map validation inside Obsidian.</div>
+    <div class="cm-line">Another editable paragraph for selection across the widget.</div>
+  </div>
+</div>

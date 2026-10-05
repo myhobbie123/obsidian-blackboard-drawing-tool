@@ -191,11 +191,13 @@ function makeView(source: string, embeds: HTMLElement[], withEditor = true) {
   const file = new TFile();
   file.path = 'Note.md';
   view.file = file;
+  view.getMode = () => withEditor ? 'source' : 'preview';
   view.editor = withEditor
     ? {
         getValue: vi.fn(() => source),
         offsetToPos: vi.fn((offset: number) => ({ line: 0, ch: offset })),
         replaceRange: vi.fn(),
+        cm: { dispatch: vi.fn(), requestMeasure: vi.fn() },
       }
     : undefined;
   return view;
@@ -216,10 +218,8 @@ describe('persistEmbedSize', () => {
     const embed = embedFor('D.blackboard');
     const view = makeView(source, [embed]);
     await persistEmbedSize(makeApp(view), embed, 'D.blackboard', 640, 480);
-    expect(view.editor.replaceRange).toHaveBeenCalledWith(
-      '![[D.blackboard|640x480]]',
-      { line: 0, ch: source.indexOf('![[') },
-      { line: 0, ch: source.indexOf(']]') + 2 },
+    expect(view.editor.cm.dispatch).toHaveBeenCalledWith(
+      { changes: { insert: '![[D.blackboard|640x480]]', from: source.indexOf('![['), to: source.indexOf(']]') + 2 }, annotations: [{ isolateHistory: 'full' }] },
     );
   });
 
@@ -227,7 +227,7 @@ describe('persistEmbedSize', () => {
     const embed = embedFor('D.blackboard');
     const view = makeView('![[D.blackboard]]', [embed]);
     await persistEmbedSize(makeApp(view), embed, 'D.blackboard', 300, 200);
-    expect(view.editor.replaceRange.mock.calls[0][0]).toBe('![[D.blackboard|300x200]]');
+    expect(view.editor.cm.dispatch.mock.calls[0][0].changes.insert).toBe('![[D.blackboard|300x200]]');
   });
 
   it('rewrites the second embed when the second one was dragged', async () => {
@@ -236,32 +236,32 @@ describe('persistEmbedSize', () => {
     const second = embedFor('D.blackboard');
     const view = makeView(source, [first, second]);
     await persistEmbedSize(makeApp(view), second, 'D.blackboard', 640, 480);
-    const [, from, to] = view.editor.replaceRange.mock.calls[0];
-    expect(from.ch).toBe(source.lastIndexOf('![['));
-    expect(to.ch).toBe(source.length - 1);
+    const { from, to } = view.editor.cm.dispatch.mock.calls[0][0].changes;
+    expect(from).toBe(source.lastIndexOf('![['));
+    expect(to).toBe(source.length - 1);
   });
 
-  it('falls back to the first embed when DOM and source counts disagree', async () => {
+  it('refuses when DOM and source counts disagree', async () => {
     // Live Preview may have virtualised one of the two source embeds away.
     const source = '![[D.blackboard|1x1]]\n![[D.blackboard|2x2]]\n';
     const only = embedFor('D.blackboard');
     const view = makeView(source, [only]);
     await persistEmbedSize(makeApp(view), only, 'D.blackboard', 640, 480);
-    expect(view.editor.replaceRange.mock.calls[0][1].ch).toBe(0);
+    expect(view.editor.cm.dispatch).not.toHaveBeenCalled();
   });
 
   it('does nothing when the note only mentions the drawing in a code fence', async () => {
     const embed = embedFor('D.blackboard');
     const view = makeView('```\n![[D.blackboard|1x1]]\n```\n', [embed]);
     await persistEmbedSize(makeApp(view), embed, 'D.blackboard', 640, 480);
-    expect(view.editor.replaceRange).not.toHaveBeenCalled();
+    expect(view.editor.cm.dispatch).not.toHaveBeenCalled();
   });
 
   it('does nothing when the size is already what the alias says', async () => {
     const embed = embedFor('D.blackboard');
     const view = makeView('![[D.blackboard|640x480]]', [embed]);
     await persistEmbedSize(makeApp(view), embed, 'D.blackboard', 640, 480);
-    expect(view.editor.replaceRange).not.toHaveBeenCalled();
+    expect(view.editor.cm.dispatch).not.toHaveBeenCalled();
   });
 
   it('resolves links through the metadata cache, ignoring same-named other drawings', async () => {
@@ -269,28 +269,15 @@ describe('persistEmbedSize', () => {
     const view = makeView('![[Other.blackboard]]\n![[Sub/D.blackboard]]\n', [embed]);
     const app = makeApp(view);
     await persistEmbedSize(app, embed, 'Sub/D.blackboard', 640, 480);
-    expect(view.editor.replaceRange.mock.calls[0][0]).toBe('![[Sub/D.blackboard|640x480]]');
+    expect(view.editor.cm.dispatch.mock.calls[0][0].changes.insert).toBe('![[Sub/D.blackboard|640x480]]');
   });
 
-  it('writes through Vault.process when the view has no editor', async () => {
+  it('refuses disk-only edits without an undo-capable editor', async () => {
     const embed = embedFor('D.blackboard');
     const view = makeView('![[D.blackboard|1x1]]\n', [embed], false);
     const app = makeApp(view);
-    app.vault.process = vi.fn((_file: unknown, fn: (data: string) => string) =>
-      Promise.resolve(fn('![[D.blackboard|1x1]]\n')));
     await persistEmbedSize(app, embed, 'D.blackboard', 640, 480);
-    expect(app.vault.process).toHaveBeenCalled();
-    await expect(app.vault.process.mock.results[0].value).resolves.toBe('![[D.blackboard|640x480]]\n');
-  });
-
-  it('leaves the note untouched via Vault.process when the embed vanished under us', async () => {
-    const embed = embedFor('D.blackboard');
-    const view = makeView('![[D.blackboard|1x1]]\n', [embed], false);
-    const app = makeApp(view);
-    app.vault.process = vi.fn((_file: unknown, fn: (data: string) => string) =>
-      Promise.resolve(fn('the user deleted the embed\n')));
-    await persistEmbedSize(app, embed, 'D.blackboard', 640, 480);
-    await expect(app.vault.process.mock.results[0].value).resolves.toBe('the user deleted the embed\n');
+    expect(app.vault.process).not.toHaveBeenCalled();
   });
 
   it('does nothing when no Markdown view hosts the embed', async () => {
@@ -306,6 +293,6 @@ describe('persistEmbedSize', () => {
     const app = makeApp(view);
     app.workspace.getActiveViewOfType = vi.fn(() => null);
     await persistEmbedSize(app, embed, 'D.blackboard', 640, 480);
-    expect(view.editor.replaceRange).toHaveBeenCalled();
+    expect(view.editor.cm.dispatch).toHaveBeenCalled();
   });
 });

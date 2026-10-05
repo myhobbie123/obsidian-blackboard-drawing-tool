@@ -9,6 +9,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@codemirror/commands': path.resolve(__dirname, "test/__mocks__/cm-commands.ts"),
       obsidian: path.resolve(__dirname, "test/__mocks__/obsidian.ts"),
     },
   },

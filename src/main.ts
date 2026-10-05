@@ -13,7 +13,9 @@ import { mountBlackboardEmbed, unmountAllEmbeds } from './presentation/embed';
 import { SurfaceManager } from './presentation/surface-manager';
 import { DocumentStore } from './application/document-store';
 import { GlobalToolbar } from './presentation/global-toolbar';
-import { parseEmbedSize, fitSavedEmbedSize } from './presentation/embed-size';
+import { fitSavedEmbedSize, formatEmbedAlias } from './presentation/embed-size';
+import { readRenderedAlias, applyEmbedLayout } from './presentation/embed-layout';
+import { moveActiveBoard, setActiveNoteBoard } from './presentation/embed-controls';
 import { rafCoalesce } from './presentation/dom-scheduling';
 import { ObsidianTextSidecarRepository } from './infrastructure/obsidian-text-sidecar-repository';
 import type { ITextSidecarRepository } from './domain/ports';
@@ -104,6 +106,15 @@ export default class BlackboardPlugin extends Plugin {
     this.textController = new TextController(this.toolManager, this.surfaceManager);
     this.register(() => this.textController.destroy());
     this.registerToolCommands();
+    this.register(this.surfaceManager.onChange((_surface, el) => setActiveNoteBoard(el)));
+    this.register(() => setActiveNoteBoard(null));
+    for (const direction of [-1, 1] as const) {
+      this.addCommand({
+        id: direction < 0 ? 'move-board-up' : 'move-board-down',
+        name: direction < 0 ? 'Move board up' : 'Move board down',
+        callback: () => moveActiveBoard(this.app, direction),
+      });
+    }
     // The workspace container's document is the one every non-pop-out surface lives in;
     // pop-out documents are bound by TextController.attach as their surfaces mount.
     this.textController.bindDocument(this.app.workspace.containerEl?.ownerDocument ?? activeDocument);
@@ -236,30 +247,41 @@ export default class BlackboardPlugin extends Plugin {
     patchCanvas(this.app, this, this.settings, this.repo, this.createDrawingUseCase, this.surfaceManager, this.toolManager, this.documentStore, this.textController);
 
     const processEmbeds = () => {
-      const embeds = activeDocument.querySelectorAll('.internal-embed.mod-generic.is-loaded');
+      const embeds = activeDocument.querySelectorAll<HTMLElement>('.internal-embed.mod-generic.is-loaded');
       embeds.forEach((embedEl) => {
-        const src = (embedEl as HTMLElement).getAttribute('src') || '';
-        if (!src.endsWith('.' + FILE_EXTENSION)) return;
-        if ((embedEl as HTMLElement).dataset.bbMounted === 'true') return;
+        const src = embedEl.getAttribute('src') || '';
+        if (!src.endsWith('.' + FILE_EXTENSION) || embedEl.closest('.canvas-node')) return;
+        if (embedEl.dataset.bbMountPending === 'true') return;
         const file = this.app.metadataCache.getFirstLinkpathDest(src, '');
         if (!file) return;
-        const sizeAlias = (embedEl as HTMLElement).getAttribute('width')
-          || (embedEl as HTMLElement).getAttribute('alt')
-          || '';
-        const size = parseEmbedSize(sizeAlias);
-        if (size) {
-          // Explicit |WxH / |N% alias overrides the default.
-          if (size.width !== null) (embedEl as HTMLElement).style.width = size.width;
-          if (size.height !== null) (embedEl as HTMLElement).style.height = size.height;
-          void mountBlackboardEmbed(this.repo, embedEl as HTMLElement, file.path, this.settings, this.surfaceManager, this.toolManager, this.documentStore, this.textController, this.app);
-        } else {
-          // No alias: render at the drawing's saved size, centred, capped to the note
-          // width. Reading the file first keeps the embed image-like rather than
-          // stretching to full width.
-          void this.applySavedEmbedSize(embedEl as HTMLElement, file.path).then(() => {
-            void mountBlackboardEmbed(this.repo, embedEl as HTMLElement, file.path, this.settings, this.surfaceManager, this.toolManager, this.documentStore, this.textController, this.app);
-          });
-        }
+        embedEl.dataset.bbMountPending = 'true';
+        void (async () => {
+          try {
+            const alias = await readRenderedAlias(this.app, embedEl, file.path);
+            const fingerprint = formatEmbedAlias(alias);
+            const mounted = embedEl.dataset.bbMounted === 'true';
+            if (mounted && embedEl.dataset.bbAlias === fingerprint) {
+              applyEmbedLayout(embedEl, alias);
+              return;
+            }
+            embedEl.dataset.bbAlias = fingerprint;
+            const size = alias.size;
+            if (size) {
+              embedEl.style.width = size.width ?? '';
+              embedEl.style.height = size.height ?? '';
+            } else {
+              await this.applySavedEmbedSize(embedEl, file.path);
+            }
+            applyEmbedLayout(embedEl, alias);
+            if (!mounted) {
+              await mountBlackboardEmbed(this.repo, embedEl, file.path, this.settings, this.surfaceManager, this.toolManager, this.documentStore, this.textController, this.app);
+            }
+          } catch (error) {
+            console.warn('Blackboard: could not render note embed', error);
+          } finally {
+            delete embedEl.dataset.bbMountPending;
+          }
+        })();
       });
     };
 
@@ -294,7 +316,7 @@ export default class BlackboardPlugin extends Plugin {
       const activeEl = activeDocument.querySelector('.workspace-leaf.mod-active .view-content');
       if (activeEl && !(activeEl as HTMLElement).dataset.bbObserved) {
         (activeEl as HTMLElement).dataset.bbObserved = 'true';
-        embedObserver.observe(activeEl, { childList: true, subtree: true });
+        embedObserver.observe(activeEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['alt', 'width', 'src'] });
       }
       processEmbeds();
     }));

@@ -269,6 +269,17 @@ describe('mountBlackboardEmbed – document-level geometric Scribble guard', () 
     document.body.removeChild(sibling);
   });
 
+  it('lets frame buttons receive native mobile clicks without changing drawing touch protection', async () => {
+    cleanup = await mountBlackboardEmbed(repo, embedEl, filePath, settings);
+    stubEmbedRect();
+    const controls = embedEl.createDiv({ cls: 'bb-frame-controls' });
+    const button = controls.createEl('button');
+    expect(dispatchStylusTouch(button, { x: 250, y: 150 }, 'direct').defaultPrevented).toBe(false);
+    expect(dispatchStylusTouch(button, { x: 250, y: 150 }, 'direct', 'touchmove').defaultPrevented).toBe(false);
+    const drawing = embedEl.querySelector('.blackboard-drawing-container')!;
+    expect(dispatchStylusTouch(drawing, { x: 250, y: 150 }, 'direct').defaultPrevented).toBe(true);
+  });
+
   it('prevents a stylus touch on the host contenteditable within 12px of the embed edge', async () => {
     cleanup = await mountBlackboardEmbed(repo, embedEl, filePath, settings);
     stubEmbedRect();

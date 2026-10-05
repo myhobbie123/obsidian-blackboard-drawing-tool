@@ -78,6 +78,7 @@ export interface EmbedMoveEdit { source: string; start: number; end: number; tex
  */
 export function planEmbedMove(source: string, fromOccurrence: number, targetBlockIndex: number): EmbedMoveEdit | null {
   if (/\r(?!\n)/.test(source) || (/\r\n/.test(source) && /(?<!\r)\n/.test(source))) return null;
+  if (source.includes('<!--') || /^ {0,3}\$\$/m.test(source)) return null;
   const blocks = noteBlocks(source);
   const from = movableBlock(source, fromOccurrence, blocks);
   if (from < 0 || !Number.isInteger(targetBlockIndex) || targetBlockIndex < 0 || targetBlockIndex > blocks.length || targetBlockIndex === from || targetBlockIndex === from + 1) return null;

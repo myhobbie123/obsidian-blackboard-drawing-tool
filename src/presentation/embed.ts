@@ -1,4 +1,4 @@
-import { MarkdownView, TFile, type App } from 'obsidian';
+import { Notice, type App } from 'obsidian';
 import type { IDrawingRepository } from '../domain/ports';
 import type { BlackboardFile, PluginSettings } from '../domain/entities';
 import { DrawingEngine } from '../infrastructure/canvas-renderer';
@@ -18,7 +18,9 @@ import { engineSurface } from './drawing-surface';
 import { handleTextDocument, memoryTextDocument } from '../application/text-document';
 import { stampFormatVersion, withTextItems, FORMAT_VERSION } from '../application/file-format';
 import type { TextController } from './text-controller';
-import { planEmbedSizeEdit, findEmbedLinks } from './embed-size';
+import { planEmbedSizeEdit, findEmbedLinks, parseEmbedAlias } from './embed-size';
+import { hostMarkdownView, editableNote, resolveEmbedLink, commitNoteEdit } from './embed-note';
+import { attachBoardControls } from './embed-controls';
 import { RESIZE_DIRECTIONS, resizeFromDrag, type ResizeDirection, type ResizeStart } from './embed-resize';
 
 function dbgTarget(t: EventTarget | null): string {
@@ -47,76 +49,24 @@ function suppressEditorFocus(doc: Document): void {
   if (isEditor) active.blur();
 }
 
-/** The Markdown view that renders `el`, preferring the active one. */
-function hostMarkdownView(app: App, el: HTMLElement): MarkdownView | null {
-  const active = app.workspace.getActiveViewOfType(MarkdownView);
-  if (active && active.contentEl.contains(el)) return active;
-  let found: MarkdownView | null = null;
-  app.workspace.iterateAllLeaves((leaf) => {
-    const view = leaf.view;
-    if (!found && view instanceof MarkdownView && view.contentEl.contains(el)) found = view;
-  });
-  return found;
-}
-
-/**
- * Which copy of this drawing `embedEl` is, when the note embeds the same drawing more
- * than once. DOM order matches source order, but only when every source embed is
- * actually rendered — Live Preview virtualises off-screen lines, so the counts can
- * disagree. When they do we refuse to guess and fall back to the first occurrence
- * (the behaviour the shipped build always had), rather than resize the wrong embed.
- */
-function embedOccurrence(view: MarkdownView, embedEl: HTMLElement, sourceCount: number): number {
-  const host = embedEl.closest<HTMLElement>('.internal-embed') ?? embedEl;
-  const src = host.getAttribute('src');
-  if (!src) return 0;
-  const siblings = Array.from(view.contentEl.querySelectorAll<HTMLElement>('.internal-embed'))
-    .filter((el) => el.getAttribute('src') === src);
-  const index = siblings.indexOf(host);
-  if (index < 0 || siblings.length !== sourceCount) return 0;
-  return index;
-}
-
-/**
- * Write the dragged size back into the host note as the embed's `|WxH` alias.
- *
- * This edits the user's prose, so every step is conservative: the edit is planned by
- * `planEmbedSizeEdit` (single embed, code skipped), and it is applied through the
- * editor when the note is open in one — that keeps the user's undo history and cannot
- * clobber unsaved buffer content — or through `Vault.process`, which re-plans against
- * the bytes on disk, when it is not. A note that changed underneath us therefore either
- * gets a correctly re-planned edit or none at all.
- */
+/** Persist only through an editable CM6 buffer: isolated history, no disk writes. */
 export async function persistEmbedSize(
-  app: App,
-  embedEl: HTMLElement,
-  filePath: string,
-  width: number,
-  height: number,
+  app: App, embedEl: HTMLElement, filePath: string, width: number, height: number,
 ): Promise<void> {
   const view = hostMarkdownView(app, embedEl);
-  const file = view?.file;
-  if (!view || !file) return;
-  const isTarget = (linkpath: string) =>
-    app.metadataCache.getFirstLinkpathDest(linkpath, file.path)?.path === filePath;
-
-  const editor = view.editor;
-  const canEdit =
-    !!editor && typeof editor.getValue === 'function' && typeof editor.offsetToPos === 'function';
-  if (canEdit) {
-    const text = editor.getValue();
-    const occurrence = embedOccurrence(view, embedEl, findEmbedLinks(text).filter((m) => isTarget(m.linkpath)).length);
-    const edit = planEmbedSizeEdit(text, isTarget, width, height, occurrence);
-    if (!edit) return;
-    editor.replaceRange(edit.text, editor.offsetToPos(edit.start), editor.offsetToPos(edit.end));
+  if (!editableNote(view)) {
+    new Notice('Blackboard: resize requires an editable note. No changes made.');
     return;
   }
-
-  if (!(file instanceof TFile)) return;
-  await app.vault.process(file, (data) => {
-    const occurrence = embedOccurrence(view, embedEl, findEmbedLinks(data).filter((m) => isTarget(m.linkpath)).length);
-    return planEmbedSizeEdit(data, isTarget, width, height, occurrence)?.source ?? data;
-  });
+  const source = view.editor.getValue();
+  const link = resolveEmbedLink(app, view, embedEl, filePath, source);
+  if (!link || parseEmbedAlias(link.alias).ambiguous) {
+    new Notice('Blackboard: this embed cannot be identified safely. No changes made.');
+    return;
+  }
+  const edit = planEmbedSizeEdit(source, path => path === link.linkpath, width, height,
+    findEmbedLinks(source).filter(m => m.linkpath === link.linkpath).findIndex(m => m.start === link.start));
+  if (edit) commitNoteEdit(view, source, edit);
 }
 
 interface ActiveResize extends ResizeStart {
@@ -304,7 +254,10 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
     return { w, h };
   }
 
-  const swallow = (e: Event) => { e.stopPropagation(); e.stopImmediatePropagation(); };
+  const swallow = (e: Event) => {
+    if ((e.target as HTMLElement).closest('.bb-frame-controls')) return;
+    e.stopPropagation(); e.stopImmediatePropagation();
+  };
   embedEl.addEventListener('click', swallow, { capture: true, signal });
   embedEl.addEventListener('dblclick', swallow, { capture: true, signal });
 
@@ -468,6 +421,7 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
       void persistEmbedSize(app, embedEl, filePath, w, h);
     });
     teardowns.push(detachHandles);
+    teardowns.push(attachBoardControls(app, embedEl, filePath, signal, () => surfaceManager?.setActive(surface)));
   }
 
   surfaceManager?.register(surface, drawingContainer);
@@ -652,7 +606,10 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
   // the note still scrolls from outside the embed (accepted tradeoff). Pen draws via pointer
   // events, which still fire.
   embedEl.setCssStyles({ padding: '0' });
-  const blockScribble = (e: TouchEvent) => { e.preventDefault(); };
+  // Frame buttons must retain native touch clicks. They are outside the drawing
+  // surface; the grip prevents default itself while dragging.
+  const isFrameControl = (e: Event) => !!(e.target as Element | null)?.closest?.('.bb-frame-controls');
+  const blockScribble = (e: TouchEvent) => { if (!isFrameControl(e)) e.preventDefault(); };
   embedEl.addEventListener('touchstart', blockScribble, { passive: false, signal });
   embedEl.addEventListener('touchmove', blockScribble, { passive: false, signal });
   drawingContainer.addEventListener('touchstart', blockScribble, { passive: false, signal });
@@ -671,6 +628,7 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
   // confirmation only; see tasks.md §4.)
   const SCRIBBLE_EDGE_MARGIN = 12;
   const blockScribbleDoc = (e: TouchEvent) => {
+    if (isFrameControl(e)) return;
     const t = e.touches[0] || e.changedTouches[0];
     if (!t) return;
     const rect = embedEl.getBoundingClientRect();

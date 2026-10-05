@@ -147,7 +147,12 @@ describe('BlackboardPlugin', () => {
       // new-drawing, insert-drawing, insert-existing-drawing, draw-drawing-area, plus one
       // tool-selection command per tool (pen/highlighter/eraser/text, and wave 3's select,
       // line, arrow, rectangle and ellipse).
-      expect(plugin.addCommand).toHaveBeenCalledTimes(4 + TOOL_COMMANDS.length);
+      expect(plugin.addCommand).toHaveBeenCalledTimes(6 + TOOL_COMMANDS.length);
+      for (const id of ['move-board-up', 'move-board-down']) {
+        const command = plugin.addCommand.mock.calls.find(([command]: any[]) => command.id === id)?.[0];
+        expect(command).toBeDefined();
+        expect(command.hotkeys).toBeUndefined();
+      }
       expect(plugin.addSettingTab).toHaveBeenCalledTimes(1);
     });
 

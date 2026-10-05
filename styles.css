@@ -42,6 +42,103 @@
   overflow: hidden;
 }
 
+/* Frame controls are siblings of the drawing surface, outside its pointer routing.
+   Inset past the 16px corner / 10px edge resize hit areas. */
+.bb-frame-controls {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  max-width: calc(100% - 36px);
+  gap: var(--size-2-1);
+  opacity: 0;
+  background: var(--background-secondary);
+  border-radius: var(--radius-s);
+  pointer-events: none;
+}
+.blackboard-embed:hover .bb-frame-controls,
+.blackboard-embed.bb-board-active .bb-frame-controls,
+.blackboard-embed:focus-within .bb-frame-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+.bb-frame-controls button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: var(--size-2-1);
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  box-shadow: none;
+}
+.bb-frame-controls button[hidden] { display: none; }
+.bb-frame-controls button[aria-pressed="true"] {
+  color: var(--text-on-accent);
+  background: var(--interactive-accent);
+}
+.bb-move-grip { cursor: grab; touch-action: none; }
+.bb-drop-indicator {
+  position: fixed;
+  z-index: 10000;
+  height: 2px;
+  background: var(--interactive-accent);
+  pointer-events: none;
+}
+/* Default / legacy aliases retain the existing embed layout. */
+.markdown-preview-view .blackboard-embed:is(.bb-layout-left, .bb-layout-right) {
+  max-width: 60%;
+  min-width: min(150px, 60%);
+  margin-bottom: var(--size-4-3);
+}
+.markdown-preview-view .blackboard-embed.bb-layout-left {
+  float: left;
+  margin-left: 0;
+  margin-right: var(--size-4-4);
+}
+.markdown-preview-view .blackboard-embed.bb-layout-right {
+  float: right;
+  margin-left: var(--size-4-4);
+  margin-right: 0;
+}
+/* Contain floats at the note boundary. Heading clearing affects only floated notes. */
+.markdown-preview-sizer:has(.blackboard-embed:is(.bb-layout-left, .bb-layout-right)) { display: flow-root; }
+.markdown-preview-view:has(.blackboard-embed:is(.bb-layout-left, .bb-layout-right)) :is(h1, h2, h3, h4, h5, h6) { clear: both; }
+.markdown-preview-view.bb-narrow-note .blackboard-embed:is(.bb-layout-left, .bb-layout-right) {
+  float: none;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.blackboard-embed.bb-wrap-preview {
+  float: none;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.blackboard-embed.bb-wrap-preview::before {
+  content: "wrap: right";
+  position: absolute;
+  right: var(--size-4-2);
+  bottom: var(--size-4-2);
+  z-index: 35;
+  padding: var(--size-2-1) var(--size-4-1);
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  font-size: var(--font-smallest);
+  pointer-events: none;
+}
+.blackboard-embed.bb-layout-right.bb-wrap-preview::before { content: "wrap: left"; }
+@media (hover: none) {
+  .bb-frame-controls { opacity: 1; pointer-events: auto; }
+}
+@media print {
+  .bb-frame-controls, .bb-drop-indicator { display: none; }
+  .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-left { float: left; max-width: 60%; margin-left: 0; margin-right: var(--size-4-4); }
+  .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-right { float: right; max-width: 60%; margin-right: 0; margin-left: var(--size-4-4); }
+}
+
 /* Resize handles (embed.ts attachResizeHandles): hit targets only, shown on hover or while
    dragging. The class names are `blackboard-resize-handle <direction>`, one per entry of
    RESIZE_DIRECTIONS in embed-resize.ts. */
@@ -52,6 +149,7 @@
   touch-action: none;
   user-select: none;
 }
+.markdown-preview-view .blackboard-resize-handle { display: none; }
 
 .blackboard-embed:hover .blackboard-resize-handle,
 .blackboard-embed.blackboard-resizing .blackboard-resize-handle { opacity: 1; }
