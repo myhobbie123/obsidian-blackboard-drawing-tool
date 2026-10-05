@@ -24,4 +24,10 @@ export default tseslint.config(
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
   },
+  {
+    // Browser-only drag controller is deliberately independent of host DOM helpers
+    // so the exact production interaction can be mounted in real CM6 offline.
+    files: ['src/presentation/embed-drag.ts'],
+    rules: { 'obsidianmd/prefer-create-el': 'off' },
+  },
 );

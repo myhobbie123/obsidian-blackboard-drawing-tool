@@ -421,7 +421,7 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
       void persistEmbedSize(app, embedEl, filePath, w, h);
     });
     teardowns.push(detachHandles);
-    teardowns.push(attachBoardControls(app, embedEl, filePath, signal, () => surfaceManager?.setActive(surface), () => settings.wrapWhileEditing, openWrapSetting));
+    teardowns.push(attachBoardControls(app, embedEl, filePath, signal, () => surfaceManager?.setActive(surface), () => settings.wrapWhileEditing, openWrapSetting, () => settings.debugDrag));
   }
 
   surfaceManager?.register(surface, drawingContainer);
@@ -488,6 +488,7 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
   }
 
   const onDocPointerDown = (e: PointerEvent) => {
+    if (e.altKey && !canvasNode) return; // Alt+grab belongs to note placement, never drawing.
     const inside = isInsideDrawing(e);
     const drawInput = isDrawingInput(e);
     if (__DEV_BUILD__ && inputDebugEnabled()) {

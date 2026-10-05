@@ -24,6 +24,14 @@ describe('BlackboardSettingTab', () => {
     expect(() => tab.display()).not.toThrow();
   });
 
+  it('does not expose the hidden drag diagnostics in settings UI or search', () => {
+    const tab = createTab(); tab.display();
+    expect(DEFAULT_PLUGIN_SETTINGS.debugDrag).toBe(false);
+    expect(tab.containerEl.textContent).not.toContain('debugDrag');
+    const items = tab.getSettingDefinitions().flatMap(group => group.items);
+    expect(items.some(item => item.control.key === 'debugDrag')).toBe(false);
+  });
+
   it('creates the section headings via setHeading (no manual h2 elements)', () => {
     const tab = createTab();
 

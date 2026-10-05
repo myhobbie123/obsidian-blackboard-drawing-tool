@@ -15,7 +15,7 @@ import { DocumentStore } from './application/document-store';
 import { GlobalToolbar } from './presentation/global-toolbar';
 import { fitSavedEmbedSize, formatEmbedAlias, parseEmbedAlias } from './presentation/embed-size';
 import { readRenderedAlias, applyEmbedLayout } from './presentation/embed-layout';
-import { moveActiveBoard, putActiveBoardOnOwnLine, setActiveNoteBoard } from './presentation/embed-controls';
+import { moveActiveBoard, setActiveNoteBoard } from './presentation/embed-controls';
 import { hostMarkdownView, noteCM } from './presentation/embed-note';
 import { rafCoalesce } from './presentation/dom-scheduling';
 import { ObsidianTextSidecarRepository } from './infrastructure/obsidian-text-sidecar-repository';
@@ -116,11 +116,6 @@ export default class BlackboardPlugin extends Plugin {
         callback: () => moveActiveBoard(this.app, direction),
       });
     }
-    this.addCommand({
-      id: 'put-board-on-own-line',
-      name: 'Blackboard: put board on its own line',
-      callback: () => putActiveBoardOnOwnLine(this.app),
-    });
     // The workspace container's document is the one every non-pop-out surface lives in;
     // pop-out documents are bound by TextController.attach as their surfaces mount.
     this.textController.bindDocument(this.app.workspace.containerEl?.ownerDocument ?? activeDocument);

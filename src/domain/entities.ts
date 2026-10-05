@@ -108,6 +108,8 @@ export interface PluginSettings {
   recognizeShapes: boolean;
   /** Opt-in CM6 float experiment; older/malformed settings remain off. */
   wrapWhileEditing: boolean;
+  /** Hidden diagnostic option; settings JSON only. */
+  debugDrag: boolean;
 }
 
 /** The eight color-popover shortcuts seeded by default, in display order. */
@@ -127,6 +129,7 @@ export const DEFAULT_PLUGIN_SETTINGS: PluginSettings = {
   textFontSize: DEFAULT_TEXT_FONT_SIZE,
   recognizeShapes: false,
   wrapWhileEditing: false,
+  debugDrag: false,
 };
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
@@ -234,6 +237,7 @@ export function validateSettings(settings: PluginSettings): PluginSettings {
     result.recognizeShapes = false;
   }
   if (typeof result.wrapWhileEditing !== 'boolean') result.wrapWhileEditing = false;
+  if (typeof result.debugDrag !== 'boolean') result.debugDrag = false;
   if (typeof result.boardBackground !== 'string' || result.boardBackground === '') {
     result.boardBackground = '#000000';
   }

@@ -15,6 +15,7 @@ describe('DEFAULT_PLUGIN_SETTINGS', () => {
       textFontSize: 20,
       recognizeShapes: false,
       wrapWhileEditing: false,
+      debugDrag: false,
     });
   });
 

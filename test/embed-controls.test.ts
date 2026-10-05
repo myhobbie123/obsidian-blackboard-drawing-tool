@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownView, TFile, Menu, Notice } from 'obsidian';
-import { attachBoardControls, moveActiveBoard, putActiveBoardOnOwnLine, setActiveNoteBoard } from '../src/presentation/embed-controls';
+import { attachBoardControls, moveActiveBoard, setActiveNoteBoard } from '../src/presentation/embed-controls';
 import { applyEmbedLayout, readRenderedAlias } from '../src/presentation/embed-layout';
 import { commitNoteEdit, resolveEmbedLink } from '../src/presentation/embed-note';
 import { parseEmbedAlias } from '../src/presentation/embed-size';
@@ -47,6 +47,13 @@ const pointer = (type: string, x = 100, y = 100) => new PointerEvent(type, { bub
 afterEach(() => { setActiveNoteBoard(null); document.body.innerHTML = ''; vi.restoreAllMocks(); });
 
 describe('note controls and write transactions', () => {
+  it('has exactly the grip and three wrap toggles, without arrow or extraction buttons', () => {
+    const f = fixture();
+    expect([...f.el.querySelectorAll('.bb-frame-controls button')].map(b => b.getAttribute('aria-label'))).toEqual([
+      'Drag to move board', 'Center', 'Board left, text on the right', 'Board right, text on the left',
+    ]);
+    f.cleanup();
+  });
   it('moves the source cursor board with an isolated undo step, then moves it again', () => {
     const f = fixture();
     moveActiveBoard(f.app, 1);
@@ -104,22 +111,20 @@ describe('note controls and write transactions', () => {
     expect(f.cm.dispatch.mock.calls[0][0].annotations).toEqual([{ isolateHistory: 'full' }]);
     f.undo(); expect(f.source()).toBe(original); f.cleanup();
   });
-  it('offers extraction as a button, context action and source command', () => {
-    for (const action of ['button', 'context', 'command']) {
+  it('offers extraction only in the grip context menu', () => {
+    for (const action of ['context']) {
       const f = fixture(`- Item.${board}`);
-      if (action === 'button') f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!.click();
       if (action === 'context') {
         f.el.querySelector('.bb-move-grip')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
         (Menu as any).last.items[0].action();
       }
-      if (action === 'command') putActiveBoardOnOwnLine(f.app);
       expect(f.source()).toBe(`- Item.\n\n${board}`);
       expect(f.cm.dispatch).toHaveBeenCalledTimes(1); f.cleanup(); f.el.remove();
     }
   });
   it('keeps protected-source controls enabled and provides an actionable Notice', () => {
     const f = fixture(`| Board |\n| --- |\n| ${board} |`);
-    const button = f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!;
+    const button = f.el.querySelector<HTMLButtonElement>('.bb-move-grip')!;
     expect(button.disabled).toBe(false); button.click();
     expect((Notice as any).messages.at(-1)).toContain('outside the table manually');
     expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
@@ -130,7 +135,8 @@ describe('note controls and write transactions', () => {
     expect(resolveEmbedLink(f.app, f.view, f.el, 'x.blackboard', source)).toBeNull();
     f.cm.posAtDOM = () => source.lastIndexOf('![[');
     expect(resolveEmbedLink(f.app, f.view, f.el, 'x.blackboard', source)?.start).toBe(source.lastIndexOf('![['));
-    f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!.click();
+    f.el.querySelector('.bb-move-grip')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    (Menu as any).last.items[0].action();
     expect(f.source()).toBe(`- Text.${board}\n\n${board}`); f.cleanup();
   });
   it('a source cursor inside a code token never moves the other live board on that line', () => {
@@ -145,7 +151,8 @@ describe('note controls and write transactions', () => {
     const f = fixture(board);
     moveActiveBoard(f.app, -1);
     expect((Notice as any).messages.at(-1)).toContain('Use Move down');
-    putActiveBoardOnOwnLine(f.app);
+    f.el.querySelector('.bb-move-grip')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+    (Menu as any).last.items[0].action();
     expect((Notice as any).messages.at(-1)).toContain('already has its own paragraph');
     expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
   });
@@ -204,14 +211,14 @@ describe('drag movement', () => {
       expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
     }
   });
-  it('hides the indicator inside a protected block and refuses the drop', () => {
-    const f = dragFixture(`${board}\n\n> [!note]\n> last`); f.start();
+  it('hides the indicator inside a code block and refuses the drop', () => {
+    const f = dragFixture(`${board}\n\n~~~\nlast\n~~~`); f.start();
     expect(document.querySelector<HTMLDivElement>('.bb-drop-indicator')!.hidden).toBe(true);
     f.grip.dispatchEvent(pointer('pointerup', 100, 550)); expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
   });
   it('does not write when dropped in the original gap or without a drag', () => {
     const f = dragFixture();
-    f.cm.posAtCoords.mockReturnValue(0); // after first block = original gap
+    f.cm.posAtCoords.mockReturnValue(f.source().indexOf(board)); // own board line = current slot
     f.start(); f.grip.dispatchEvent(pointer('pointerup', 100, 550));
     expect(f.cm.dispatch).not.toHaveBeenCalled();
     f.grip.dispatchEvent(pointer('pointerdown'));
@@ -219,7 +226,7 @@ describe('drag movement', () => {
     expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
   });
   it('rechecks forbidden release coordinates after a valid preview', () => {
-    const f = dragFixture(`${board}\n\nlast\n\n> [!note]\n> body`); f.start();
+    const f = dragFixture(`${board}\n\nlast\n\n~~~\nbody\n~~~`); f.start();
     f.cm.posAtCoords.mockReturnValue(f.source().indexOf('body'));
     f.grip.dispatchEvent(pointer('pointerup', 100, 550)); expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
   });
@@ -229,5 +236,12 @@ describe('drag movement', () => {
     expect(f.pane.scrollTop).toBeGreaterThan(0);
     f.changeSource(f.source() + '\nchanged'); f.frame();
     f.grip.dispatchEvent(pointer('pointerup', 100, 550)); expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
+  });
+  it('can drag without the optional documentTop property', () => {
+    const f = dragFixture(); delete (f.cm as any).documentTop;
+    f.start();
+    expect(document.querySelector<HTMLDivElement>('.bb-drop-indicator')!.hidden).toBe(false);
+    f.grip.dispatchEvent(pointer('pointerup', 100, 550));
+    expect(f.cm.dispatch).toHaveBeenCalledOnce(); f.cleanup();
   });
 });

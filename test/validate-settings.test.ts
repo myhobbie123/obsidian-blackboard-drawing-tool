@@ -6,6 +6,12 @@ function makeSettings(overrides: Partial<PluginSettings> = {}): PluginSettings {
 }
 
 describe('validateSettings', () => {
+  it('defaults absent/malformed drag diagnostics off and preserves explicit opt-in', () => {
+    for (const debugDrag of [undefined, null, 'true', 1]) {
+      expect(validateSettings(makeSettings({ debugDrag: debugDrag as any })).debugDrag).toBe(false);
+    }
+    expect(validateSettings(makeSettings({ debugDrag: true })).debugDrag).toBe(true);
+  });
   it('keeps experimental wrap opt-in for older and malformed settings', () => {
     for (const wrapWhileEditing of [undefined, null, 'true', 1]) {
       expect(validateSettings(makeSettings({ wrapWhileEditing: wrapWhileEditing as any })).wrapWhileEditing).toBe(false);

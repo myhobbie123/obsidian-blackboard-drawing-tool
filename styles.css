@@ -77,7 +77,23 @@
   color: var(--text-on-accent);
   background: var(--interactive-accent);
 }
-.bb-move-grip { cursor: grab; touch-action: none; }
+.bb-move-grip { cursor: grab; touch-action: none; min-width: 32px; min-height: 32px; }
+body.bb-dragging, body.bb-dragging * { cursor: grabbing !important; }
+.bb-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  box-sizing: border-box;
+  border: 2px solid var(--interactive-accent);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  opacity: 0.55;
+  padding: var(--size-4-2);
+  pointer-events: none;
+}
+.bb-drag-ghost[hidden], .bb-drop-indicator[hidden] { display: none; }
 .bb-pane-tooltip {
   position: fixed;
   z-index: 10001;
@@ -93,7 +109,7 @@
 .bb-drop-indicator {
   position: fixed;
   z-index: 10000;
-  height: 2px;
+  height: 3px;
   background: var(--interactive-accent);
   pointer-events: none;
 }
@@ -163,7 +179,7 @@
   .bb-frame-controls { opacity: 1; pointer-events: auto; }
 }
 @media print {
-  .bb-frame-controls, .bb-drop-indicator, .bb-pane-tooltip, .bb-wrap-badge { display: none; }
+  .bb-frame-controls, .bb-drop-indicator, .bb-drag-ghost, .bb-pane-tooltip, .bb-wrap-badge { display: none; }
   .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-left { float: left; max-width: 60%; margin-left: 0; margin-right: var(--size-4-4); }
   .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-right { float: right; max-width: 60%; margin-right: 0; margin-left: var(--size-4-4); }
 }

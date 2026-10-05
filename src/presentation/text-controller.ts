@@ -182,6 +182,7 @@ export class TextController {
 
   private readonly onPointerDown = (event: Event): void => {
     const target = event.target instanceof Element ? event.target : null;
+    if ((event as PointerEvent).altKey && target?.closest('.blackboard-embed') && !target.closest('.canvas-node')) return;
     // Interacting with any Blackboard chrome arms the shortcuts.
     this.armed = isBlackboardChrome(target);
     if (!target) return;

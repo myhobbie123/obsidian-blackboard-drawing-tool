@@ -149,7 +149,7 @@ function nestedTable(source: string, block: NoteBlock, start: number): boolean {
   return false;
 }
 
-export function inspectEmbedMove(source: string, occurrence: number, blocks = noteBlocks(source)): MoveSource | { reason: MoveRefusal } {
+export function inspectEmbedMove(source: string, occurrence: number, blocks = noteBlocks(source), allowMathElsewhere = false): MoveSource | { reason: MoveRefusal } {
   if (!Number.isInteger(occurrence) || occurrence < 0) return { reason: 'ambiguous' };
   const link = findEmbedLinks(source)[occurrence];
   if (!link) {
@@ -164,7 +164,7 @@ export function inspectEmbedMove(source: string, occurrence: number, blocks = no
   if (nestedTable(source, block, link.start)) return { reason: 'table' };
   if (enclosedLink(source, link.start)) return { reason: 'link' };
   if (/\r(?!\n)/.test(source) || (/\r\n/.test(source) && /(?<!\r)\n/.test(source))) return { reason: 'line-endings' };
-  if (source.includes('<!--') || /^ {0,3}\$\$/m.test(source) || blocks.some(b => b.kind === 'unsafe')) return { reason: 'unsafe' };
+  if (source.includes('<!--') || (!allowMathElsewhere && /^ {0,3}\$\$/m.test(source)) || blocks.some(b => b.kind === 'unsafe')) return { reason: 'unsafe' };
   return { link, blockIndex, standalone: block.kind === 'embed' && source.slice(block.start, block.end).trim() === source.slice(link.start, link.end) };
 }
 
@@ -186,7 +186,7 @@ export function embedRefusalAtCursor(source: string, cursor: number): MoveRefusa
 
 export interface EmbedMoveEdit { source: string; start: number; end: number; text: string; boardStart: number; }
 
-function replacement(source: string, result: string, boardStart: number): EmbedMoveEdit | null {
+export function replacement(source: string, result: string, boardStart: number): EmbedMoveEdit | null {
   if (result === source) return null;
   let start = 0;
   while (start < source.length && start < result.length && source[start] === result[start]) start++;
