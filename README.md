@@ -33,6 +33,24 @@ Screenshots are from the original Blackboard; the fork's UI differs slightly.
 ![Color controls](assets/color.png)
 ![Plugin settings](assets/settings.png)
 
+## Moving and wrapping boards
+
+Hover or focus a board to reveal its frame controls (always visible on touch screens). In **Live Preview**, drag the grip to move a standalone embed line between top-level blocks. A horizontal indicator marks a valid drop. The pane scrolls near its edges; **Escape** cancels. The **? / ?** buttons and **Move board up / Move board down** commands move one block at a time. Commands have no default hotkeys. In **Source mode**, put the cursor on the board's embed line before running a move command, or use the active board in Live Preview.
+
+Moving requires the embed to occupy its own line. Inline, ambiguous duplicate, nested, code, frontmatter, table and callout locations are refused. Drops inside protected blocks or another embed line are refused. Whole lists, tables and code blocks can be crossed without splitting their content. Unsupported opaque Markdown (for example HTML blocks or an unclosed code fence) causes a conservative refusal. Moving keeps the board as its own paragraph and cleans the affected blank-line separators. A move, layout change or resize is one isolated editor undo step; moving to the same place writes nothing. Resize and layout changes require an editable note; Reading-view controls are read-only. Canvas nodes have none of the move or wrap controls.
+
+Use **Inline (center)**, **Left, text wraps right**, or **Right, text wraps left** in the frame. Layout and size are separate pipe-delimited alias tokens:
+
+```md
+![[Drawing.blackboard]]
+![[Drawing.blackboard|left|400x300]]
+![[Drawing.blackboard|right|100%x400]]
+```
+
+Token order is flexible on read; edits write layout before size. Center is the default and is omitted on write. Unknown tokens survive rewrites; conflicting layout or size tokens are refused. Resizing preserves layout. All existing size aliases (`640x480`, `300`, `100%`, `100%x400`) remain supported.
+
+**Reading view and PDF export** float left/right boards, capped at 60% of the note width, with headings clearing the wrap and floats contained within the note. Panes narrower than 500px center boards automatically without changing their aliases. **Live Preview uses a centered board with a small `wrap: right` / `wrap: left` badge.** Actual text wrap is deferred to Reading view: CM6's block-widget measurement and visual float wrapping cannot be verified safely without Obsidian runtime testing. Source editing, selections and typing therefore keep the normal block layout. Obsidian runtime and PDF checks still need owner verification.
+
 ## Installation
 
 ### BRAT (recommended)
