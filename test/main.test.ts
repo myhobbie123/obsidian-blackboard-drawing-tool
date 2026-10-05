@@ -65,6 +65,7 @@ function createPlugin(settingsOverrides: Partial<typeof DEFAULT_PLUGIN_SETTINGS>
       on: vi.fn().mockReturnValue({ type: 'event' }),
     },
     workspace: {
+      iterateAllLeaves: vi.fn(),
       getActiveFile: vi.fn().mockReturnValue(null),
       getLeaf: vi.fn().mockReturnValue({ openFile: vi.fn() }),
       on: vi.fn().mockReturnValue({ type: 'event' }),
@@ -147,8 +148,8 @@ describe('BlackboardPlugin', () => {
       // new-drawing, insert-drawing, insert-existing-drawing, draw-drawing-area, plus one
       // tool-selection command per tool (pen/highlighter/eraser/text, and wave 3's select,
       // line, arrow, rectangle and ellipse).
-      expect(plugin.addCommand).toHaveBeenCalledTimes(6 + TOOL_COMMANDS.length);
-      for (const id of ['move-board-up', 'move-board-down']) {
+      expect(plugin.addCommand).toHaveBeenCalledTimes(7 + TOOL_COMMANDS.length);
+      for (const id of ['move-board-up', 'move-board-down', 'put-board-on-own-line']) {
         const command = plugin.addCommand.mock.calls.find(([command]: any[]) => command.id === id)?.[0];
         expect(command).toBeDefined();
         expect(command.hotkeys).toBeUndefined();

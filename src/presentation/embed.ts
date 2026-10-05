@@ -208,7 +208,7 @@ export function unmountAllEmbeds(): void {
   liveMounts.clear();
 }
 
-export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HTMLElement, filePath: string, settings: PluginSettings, surfaceManager?: SurfaceManager, toolManager?: ToolManager, store?: DocumentStore, textController?: TextController, app?: App): Promise<() => void> {
+export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HTMLElement, filePath: string, settings: PluginSettings, surfaceManager?: SurfaceManager, toolManager?: ToolManager, store?: DocumentStore, textController?: TextController, app?: App, openWrapSetting?: () => void): Promise<() => void> {
   if (embedEl.dataset.bbMounted === 'true') return () => {};
   embedEl.dataset.bbMounted = 'true';
   // Every DOM listener this mount registers is tied to one AbortController, so teardown is a
@@ -421,7 +421,7 @@ export async function mountBlackboardEmbed(repo: IDrawingRepository, embedEl: HT
       void persistEmbedSize(app, embedEl, filePath, w, h);
     });
     teardowns.push(detachHandles);
-    teardowns.push(attachBoardControls(app, embedEl, filePath, signal, () => surfaceManager?.setActive(surface)));
+    teardowns.push(attachBoardControls(app, embedEl, filePath, signal, () => surfaceManager?.setActive(surface), () => settings.wrapWhileEditing, openWrapSetting));
   }
 
   surfaceManager?.register(surface, drawingContainer);

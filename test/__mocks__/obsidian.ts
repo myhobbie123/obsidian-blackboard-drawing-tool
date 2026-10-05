@@ -20,7 +20,21 @@ export class Plugin {
   registerDomEvent = vi.fn((el: any, type: string, cb: any) => { el.addEventListener(type, cb); });
   register = vi.fn();
 }
-export class Notice {}
+export class Notice {
+  static messages: string[] = [];
+  constructor(message: string) { Notice.messages.push(message); }
+}
+export class Menu {
+  static last: Menu | null = null;
+  items: Array<{ title: string; action?: () => void }> = [];
+  constructor() { Menu.last = this; }
+  addItem(callback: (item: any) => void) {
+    const entry = { title: '', action: undefined as (() => void) | undefined };
+    const item = { setTitle: (title: string) => { entry.title = title; return item; }, onClick: (action: () => void) => { entry.action = action; return item; } };
+    callback(item); this.items.push(entry); return this;
+  }
+  showAtMouseEvent() {}
+}
 export class MarkdownView {
   editor = {
     getCursor: vi.fn().mockReturnValue({ line: 0, ch: 0 }),

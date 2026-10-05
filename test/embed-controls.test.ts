@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MarkdownView, TFile } from 'obsidian';
-import { attachBoardControls, moveActiveBoard, setActiveNoteBoard } from '../src/presentation/embed-controls';
+import { MarkdownView, TFile, Menu, Notice } from 'obsidian';
+import { attachBoardControls, moveActiveBoard, putActiveBoardOnOwnLine, setActiveNoteBoard } from '../src/presentation/embed-controls';
 import { applyEmbedLayout, readRenderedAlias } from '../src/presentation/embed-layout';
 import { commitNoteEdit, resolveEmbedLink } from '../src/presentation/embed-note';
 import { parseEmbedAlias } from '../src/presentation/embed-size';
@@ -41,7 +41,7 @@ function fixture(initial = `first\n\n${board}\n\nlast`, mode = 'source') {
   } as any;
   const abort = new AbortController();
   const cleanup = attachBoardControls(app, el, 'x.blackboard', abort.signal, vi.fn());
-  return { app, view, el, cm, history, pane, abort, cleanup, source: () => source, changeSource: (next: string) => { source = next; }, undo: () => { source = history.pop()!; } };
+  return { app, view, el, cm, history, pane, abort, cleanup, source: () => source, cursor: (offset: number) => { cursor = offset; }, changeSource: (next: string) => { source = next; }, undo: () => { source = history.pop()!; } };
 }
 const pointer = (type: string, x = 100, y = 100) => new PointerEvent(type, { bubbles: true, cancelable: true, isPrimary: true, pointerId: 1, button: 0, clientX: x, clientY: y });
 afterEach(() => { setActiveNoteBoard(null); document.body.innerHTML = ''; vi.restoreAllMocks(); });
@@ -64,7 +64,7 @@ describe('note controls and write transactions', () => {
     const f = fixture();
     const surface = f.el.createDiv({ cls: 'blackboard-drawing-container' });
     const stroke = vi.fn(); surface.addEventListener('pointerdown', stroke);
-    const left = f.el.querySelector<HTMLButtonElement>('[aria-label="Left, text wraps right"]')!;
+    const left = f.el.querySelector<HTMLButtonElement>('[aria-label="Board left, text on the right"]')!;
     left.dispatchEvent(pointer('pointerdown')); left.click();
     expect(stroke).not.toHaveBeenCalled();
     expect(f.source()).toContain('![[x.blackboard|left|300]]');
@@ -86,12 +86,68 @@ describe('note controls and write transactions', () => {
     expect(f.app.vault.process).not.toHaveBeenCalled();
     f.cleanup();
   });
-  it('disables moving an inline board with an explanatory tooltip', () => {
+  it('enables moving an inline board and extracts it below its paragraph', () => {
     const f = fixture(`text ${board} more`);
     const grip = f.el.querySelector<HTMLButtonElement>('.bb-move-grip')!;
-    expect(grip.disabled).toBe(true); expect(grip.title).toContain('own line');
-    moveActiveBoard(f.app, 1); expect(f.cm.dispatch).not.toHaveBeenCalled();
+    expect(grip.disabled).toBe(false);
+    moveActiveBoard(f.app, 1); expect(f.source()).toBe(`text more\n\n${board}`);
+    expect(f.cm.dispatch).toHaveBeenCalledTimes(1);
+    f.undo(); expect(f.source()).toBe(`text ${board} more`);
     f.cleanup();
+  });
+  it('extracts and sets wrap in one transaction, including an already-right alias', () => {
+    const original = `- First item ${board}\n- Second item.![[other.blackboard|left]]`;
+    const f = fixture(original);
+    f.el.querySelector<HTMLButtonElement>('[aria-label="Board right, text on the left"]')!.click();
+    expect(f.source()).toBe(`${board}\n\n- First item\n- Second item.![[other.blackboard|left]]`);
+    expect(f.cm.dispatch).toHaveBeenCalledTimes(1);
+    expect(f.cm.dispatch.mock.calls[0][0].annotations).toEqual([{ isolateHistory: 'full' }]);
+    f.undo(); expect(f.source()).toBe(original); f.cleanup();
+  });
+  it('offers extraction as a button, context action and source command', () => {
+    for (const action of ['button', 'context', 'command']) {
+      const f = fixture(`- Item.${board}`);
+      if (action === 'button') f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!.click();
+      if (action === 'context') {
+        f.el.querySelector('.bb-move-grip')!.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true }));
+        (Menu as any).last.items[0].action();
+      }
+      if (action === 'command') putActiveBoardOnOwnLine(f.app);
+      expect(f.source()).toBe(`- Item.\n\n${board}`);
+      expect(f.cm.dispatch).toHaveBeenCalledTimes(1); f.cleanup(); f.el.remove();
+    }
+  });
+  it('keeps protected-source controls enabled and provides an actionable Notice', () => {
+    const f = fixture(`| Board |\n| --- |\n| ${board} |`);
+    const button = f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!;
+    expect(button.disabled).toBe(false); button.click();
+    expect((Notice as any).messages.at(-1)).toContain('outside the table manually');
+    expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
+  });
+  it('resolves same-line duplicates by exact CM position, and refuses a partial DOM otherwise', () => {
+    const source = `- Text.${board}${board}`;
+    const f = fixture(source);
+    expect(resolveEmbedLink(f.app, f.view, f.el, 'x.blackboard', source)).toBeNull();
+    f.cm.posAtDOM = () => source.lastIndexOf('![[');
+    expect(resolveEmbedLink(f.app, f.view, f.el, 'x.blackboard', source)?.start).toBe(source.lastIndexOf('![['));
+    f.el.querySelector<HTMLButtonElement>('[aria-label="Put on its own line"]')!.click();
+    expect(f.source()).toBe(`- Text.${board}\n\n${board}`); f.cleanup();
+  });
+  it('a source cursor inside a code token never moves the other live board on that line', () => {
+    const source = `${board} \x60![[other.blackboard]]\x60`;
+    const f = fixture(source); f.cursor(source.indexOf('other'));
+    moveActiveBoard(f.app, 1);
+    expect(f.cm.dispatch).not.toHaveBeenCalled();
+    expect((Notice as any).messages.at(-1)).toContain('backticks manually');
+    f.cleanup();
+  });
+  it('explains a boundary move or already-extracted board without writing', () => {
+    const f = fixture(board);
+    moveActiveBoard(f.app, -1);
+    expect((Notice as any).messages.at(-1)).toContain('Use Move down');
+    putActiveBoardOnOwnLine(f.app);
+    expect((Notice as any).messages.at(-1)).toContain('already has its own paragraph');
+    expect(f.cm.dispatch).not.toHaveBeenCalled(); f.cleanup();
   });
   it('refuses stale source and unidentifiable virtualised duplicates', () => {
     const f = fixture(`${board}\n\nfirst\n\n${board}`);
@@ -114,6 +170,12 @@ describe('note controls and write transactions', () => {
 });
 
 describe('drag movement', () => {
+  it('moves an inline source with the grip in one transaction', () => {
+    const f = dragFixture(`first ${board}\n\nlast`); f.start();
+    f.grip.dispatchEvent(pointer('pointerup', 100, 550));
+    expect(f.source()).toBe(`first\n\nlast\n\n${board}`);
+    expect(f.cm.dispatch).toHaveBeenCalledOnce(); f.cleanup();
+  });
   function dragFixture(initial?: string) {
     const callbacks = new Map<number, FrameRequestCallback>();
     let id = 0;

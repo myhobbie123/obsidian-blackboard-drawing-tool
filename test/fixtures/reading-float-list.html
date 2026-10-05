@@ -1,0 +1,56 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Offline Reading view float and list regression</title>
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  :root { --size-4-4: 16px; --size-4-3: 12px; }
+  body { font-family: sans-serif; max-width: 760px; margin: 24px auto; }
+  .markdown-preview-sizer { padding: 12px; border: 1px solid; }
+  .blackboard-embed { width: 300px; height: 180px; background: #ddd; }
+  li { margin-bottom: 8px; }
+</style>
+<div class="markdown-preview-view">
+  <div class="markdown-preview-sizer">
+    <ul class="unrelated-list"><li>List before a board retains normal layout.</li></ul>
+    <div class="el-p"><p><span class="blackboard-embed bb-layout-left">Board left</span></p></div>
+    <div class="el-ul"><ul class="following-list">
+      <li>First list item: anonymized text that wraps beside the board with its marker visible.</li>
+      <li>Another item [ref.23, 16:49; accepted]. The marker gutter stays outside the board.</li>
+      <li>More text tests the available width beside a float and keeps the list together.</li>
+    </ul></div>
+    <h2>A heading clears the float</h2>
+    <div><span class="blackboard-embed bb-layout-right">Board right</span></div>
+    <div><ol class="following-list">
+      <li>A numbered list in a Reading view section wrapper stays next to the right float.</li>
+      <li>Nested items remain part of the same list.<ul><li>A nested marker also stays visible.</li></ul></li>
+    </ol></div>
+    <h2>The next section starts below the board</h2>
+  </div>
+</div>
+<script>
+  // Local fixture only: verify actual browser geometry without an Obsidian process.
+  const boards = [...document.querySelectorAll('.blackboard-embed')];
+  const lists = [...document.querySelectorAll('.following-list')];
+  const headings = [...document.querySelectorAll('h2')];
+  const checks = boards.map((board, index) => {
+    const b = board.getBoundingClientRect(), l = lists[index].getBoundingClientRect();
+    const firstItem = lists[index].querySelector('li').getBoundingClientRect();
+    const h = headings[index].getBoundingClientRect();
+    const left = board.classList.contains('bb-layout-left');
+    return {
+      direction: left ? 'left' : 'right',
+      float: getComputedStyle(board).float,
+      nextListFlowRoot: getComputedStyle(lists[index]).display === 'flow-root',
+      beside: Math.abs(l.top - b.top) < 24,
+      gutterClear: left ? firstItem.left - 20 >= b.right : firstItem.right <= b.left,
+      headingClear: h.top >= b.bottom,
+      board: { left: b.left, right: b.right, top: b.top, bottom: b.bottom },
+      list: { left: l.left, right: l.right, top: l.top, bottom: l.bottom },
+    };
+  });
+  const root = document.querySelector('.markdown-preview-view');
+  root.classList.add('bb-narrow-note');
+  const narrowCenters = boards.every(board => getComputedStyle(board).float === 'none');
+  root.classList.remove('bb-narrow-note');
+  document.body.dataset.wrapCheck = JSON.stringify({ checks, narrowCenters });
+</script>

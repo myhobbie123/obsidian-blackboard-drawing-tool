@@ -6,6 +6,12 @@ function makeSettings(overrides: Partial<PluginSettings> = {}): PluginSettings {
 }
 
 describe('validateSettings', () => {
+  it('keeps experimental wrap opt-in for older and malformed settings', () => {
+    for (const wrapWhileEditing of [undefined, null, 'true', 1]) {
+      expect(validateSettings(makeSettings({ wrapWhileEditing: wrapWhileEditing as any })).wrapWhileEditing).toBe(false);
+    }
+    expect(validateSettings(makeSettings({ wrapWhileEditing: true })).wrapWhileEditing).toBe(true);
+  });
   it('preserves valid settings unchanged', () => {
     const input = makeSettings();
     const result = validateSettings(input);

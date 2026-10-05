@@ -40,6 +40,8 @@ export function resolveEmbedLink(app: App, view: MarkdownView, el: HTMLElement, 
   if (cm?.posAtDOM) {
     try {
       const position = cm.posAtDOM(host, 0);
+      const exact = matches.filter(m => position >= m.start && position < m.end);
+      if (exact.length === 1) return exact[0];
       const onLine = matches.filter(m => {
         const start = source.lastIndexOf('\n', m.start - 1) + 1;
         const end = source.indexOf('\n', m.end);

@@ -106,6 +106,8 @@ export interface PluginSettings {
    * recognition at all, so it is opt-in, and even then only confident matches fire.
    */
   recognizeShapes: boolean;
+  /** Opt-in CM6 float experiment; older/malformed settings remain off. */
+  wrapWhileEditing: boolean;
 }
 
 /** The eight color-popover shortcuts seeded by default, in display order. */
@@ -124,6 +126,7 @@ export const DEFAULT_PLUGIN_SETTINGS: PluginSettings = {
   textColor: DEFAULT_TEXT_COLOR,
   textFontSize: DEFAULT_TEXT_FONT_SIZE,
   recognizeShapes: false,
+  wrapWhileEditing: false,
 };
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
@@ -230,6 +233,7 @@ export function validateSettings(settings: PluginSettings): PluginSettings {
   if (typeof result.recognizeShapes !== 'boolean') {
     result.recognizeShapes = false;
   }
+  if (typeof result.wrapWhileEditing !== 'boolean') result.wrapWhileEditing = false;
   if (typeof result.boardBackground !== 'string' || result.boardBackground === '') {
     result.boardBackground = '#000000';
   }

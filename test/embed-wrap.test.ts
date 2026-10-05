@@ -1,17 +1,18 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import { applyEmbedLayout } from '../src/presentation/embed-layout';
+import { describe, expect, it, vi } from 'vitest';
+import { applyEmbedLayout, watchEmbedLayout } from '../src/presentation/embed-layout';
 import { parseEmbedAlias } from '../src/presentation/embed-size';
 
 describe('offline wrap prototype and shipped fallback', () => {
   it('applies the experimental float in an isolated CM-shaped DOM', () => {
+    const style = document.createElement('style'); style.textContent = readFileSync('styles.css', 'utf8'); document.head.appendChild(style);
     const fixture = readFileSync('test/fixtures/live-preview-float.html', 'utf8');
     const host = document.createElement('div'); host.innerHTML = fixture; document.body.appendChild(host);
     const board = host.querySelector<HTMLElement>('.blackboard-embed')!;
     expect(window.getComputedStyle(board).float).toBe('left');
     // JSDOM has no geometry engine. These assertions prove CSS application only.
     expect(host.querySelector('.cm-line')?.getAttribute('contenteditable')).toBeNull();
-    host.remove();
+    host.remove(); style.remove();
   });
   it('ships floats in Reading view and centered badges in Live Preview', () => {
     const style = document.createElement('style'); style.textContent = readFileSync('styles.css', 'utf8');
@@ -28,5 +29,62 @@ describe('offline wrap prototype and shipped fallback', () => {
     reading.classList.add('bb-narrow-note');
     expect(window.getComputedStyle(a).float).toBe('none');
     style.remove(); reading.remove(); preview.remove();
+  });
+  it('uses a clickable explanatory badge, and true floats only when opted in', () => {
+    const style = document.createElement('style'); style.textContent = readFileSync('styles.css', 'utf8'); document.head.appendChild(style);
+    const root = document.body.createDiv({ cls: 'markdown-source-view' });
+    const widget = root.createDiv({ cls: 'cm-embed-block' });
+    const board = widget.createDiv({ cls: 'blackboard-embed' });
+    board.style.marginLeft = 'auto'; board.style.marginRight = 'auto';
+    const open = vi.fn(), measure = vi.fn();
+    applyEmbedLayout(board, parseEmbedAlias('right|300'), false, open, measure);
+    expect(board.querySelector('button')?.textContent).toBe('wrap: right — shown in Reading view');
+    board.querySelector<HTMLButtonElement>('button')!.click(); expect(open).toHaveBeenCalledOnce();
+    const badge = board.querySelector('button');
+    const mutation = new MutationObserver(() => {}); mutation.observe(board, { childList: true, subtree: true });
+    applyEmbedLayout(board, parseEmbedAlias('right|300'), false, open, measure);
+    expect(mutation.takeRecords()).toHaveLength(0); expect(board.querySelector('button')).toBe(badge); mutation.disconnect();
+    applyEmbedLayout(board, parseEmbedAlias('right|300'), true, open, measure);
+    expect(board.querySelector('.bb-wrap-badge')).toBeNull();
+    expect(window.getComputedStyle(board).float).toBe('right');
+    expect(window.getComputedStyle(widget).display).toBe('contents');
+    expect(board.style.marginLeft).toBe(''); expect(measure).toHaveBeenCalledTimes(2);
+    root.classList.add('bb-narrow-note'); expect(window.getComputedStyle(board).float).toBe('none');
+    applyEmbedLayout(board, parseEmbedAlias('right|300'), false, open, measure);
+    expect(board.style.marginLeft).toBe('auto');
+    style.remove(); root.remove();
+  });
+  it('remeasures experimental wrap on pane and board resize and cleans up', () => {
+    const root = document.body.createDiv({ cls: 'markdown-source-view' });
+    const board = root.createDiv({ cls: 'blackboard-embed' });
+    let resize!: ResizeObserverCallback;
+    const observe = vi.fn(), disconnect = vi.fn();
+    const stub = vi.fn(function (this: any, callback: ResizeObserverCallback) { resize = callback; this.observe = observe; this.disconnect = disconnect; });
+    vi.stubGlobal('ResizeObserver', stub);
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(fn => { frames.push(fn); return frames.length; });
+    const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    Object.defineProperty(root, 'clientWidth', { value: 700 });
+    applyEmbedLayout(board, parseEmbedAlias('left'), true);
+    const measure = vi.fn(); const stop = watchEmbedLayout(board, measure);
+    expect(observe.mock.calls.map(call => call[0])).toEqual([root, board]);
+    frames.shift()!(0); expect(measure).toHaveBeenCalledOnce();
+    resize([], {} as ResizeObserver); resize([], {} as ResizeObserver);
+    expect(frames).toHaveLength(1); frames.shift()!(0); expect(measure).toHaveBeenCalledTimes(2);
+    resize([], {} as ResizeObserver); stop(); expect(disconnect).toHaveBeenCalledOnce(); expect(cancel).toHaveBeenCalled();
+    root.remove(); vi.unstubAllGlobals(); vi.restoreAllMocks();
+  });
+  it('contains following list markers beside both float directions, including section wrappers', () => {
+    const style = document.createElement('style'); style.textContent = readFileSync('styles.css', 'utf8'); document.head.appendChild(style);
+    const host = document.body.createDiv(); host.innerHTML = readFileSync('test/fixtures/reading-float-list.html', 'utf8');
+    const boards = Array.from(host.querySelectorAll<HTMLElement>('.blackboard-embed'));
+    applyEmbedLayout(boards[0], parseEmbedAlias('left|300'));
+    applyEmbedLayout(boards[1], parseEmbedAlias('right|300'));
+    expect(window.getComputedStyle(boards[0]).float).toBe('left');
+    expect(window.getComputedStyle(boards[1]).float).toBe('right');
+    for (const list of host.querySelectorAll('.following-list')) expect(window.getComputedStyle(list).display).toBe('flow-root');
+    expect(window.getComputedStyle(host.querySelector('.unrelated-list')!).display).not.toBe('flow-root');
+    for (const heading of host.querySelectorAll('h2')) expect(window.getComputedStyle(heading).clear).toBe('both');
+    style.remove(); host.remove();
   });
 });

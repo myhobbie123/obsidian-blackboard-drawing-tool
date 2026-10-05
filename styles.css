@@ -78,6 +78,18 @@
   background: var(--interactive-accent);
 }
 .bb-move-grip { cursor: grab; touch-action: none; }
+.bb-pane-tooltip {
+  position: fixed;
+  z-index: 10001;
+  padding: var(--size-4-2);
+  border-radius: var(--radius-s);
+  color: var(--text-normal);
+  background: var(--background-secondary);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  pointer-events: none;
+}
 .bb-drop-indicator {
   position: fixed;
   z-index: 10000;
@@ -86,17 +98,20 @@
   pointer-events: none;
 }
 /* Default / legacy aliases retain the existing embed layout. */
-.markdown-preview-view .blackboard-embed:is(.bb-layout-left, .bb-layout-right) {
+.markdown-preview-view .blackboard-embed:is(.bb-layout-left, .bb-layout-right),
+.markdown-source-view .blackboard-embed.bb-wrap-experimental {
   max-width: 60%;
   min-width: min(150px, 60%);
   margin-bottom: var(--size-4-3);
 }
-.markdown-preview-view .blackboard-embed.bb-layout-left {
+.markdown-preview-view .blackboard-embed.bb-layout-left,
+.markdown-source-view .blackboard-embed.bb-wrap-experimental.bb-layout-left {
   float: left;
   margin-left: 0;
   margin-right: var(--size-4-4);
 }
-.markdown-preview-view .blackboard-embed.bb-layout-right {
+.markdown-preview-view .blackboard-embed.bb-layout-right,
+.markdown-source-view .blackboard-embed.bb-wrap-experimental.bb-layout-right {
   float: right;
   margin-left: var(--size-4-4);
   margin-right: 0;
@@ -104,7 +119,21 @@
 /* Contain floats at the note boundary. Heading clearing affects only floated notes. */
 .markdown-preview-sizer:has(.blackboard-embed:is(.bb-layout-left, .bb-layout-right)) { display: flow-root; }
 .markdown-preview-view:has(.blackboard-embed:is(.bb-layout-left, .bb-layout-right)) :is(h1, h2, h3, h4, h5, h6) { clear: both; }
-.markdown-preview-view.bb-narrow-note .blackboard-embed:is(.bb-layout-left, .bb-layout-right) {
+/* Only lists following a board paragraph need a separate formatting context: their
+   marker gutter then stays beside the float instead of painting over the board. */
+.markdown-preview-view :is(p, div):has(> .blackboard-embed:is(.bb-layout-left, .bb-layout-right)) ~ :is(ul, ol),
+.markdown-preview-view :is(p, div):has(> .blackboard-embed:is(.bb-layout-left, .bb-layout-right)) ~ div > :is(ul, ol),
+.markdown-preview-view div:has(> p > .blackboard-embed:is(.bb-layout-left, .bb-layout-right)) ~ :is(ul, ol),
+.markdown-preview-view div:has(> p > .blackboard-embed:is(.bb-layout-left, .bb-layout-right)) ~ div > :is(ul, ol) {
+  display: flow-root;
+}
+/* Opt-in: let the widget's actual float participate in the editor content's flow.
+   requestMeasure is scheduled on layout/size changes; owner checks CM cursor mapping. */
+.markdown-source-view .cm-embed-block:has(.blackboard-embed.bb-wrap-experimental) { display: contents; }
+.markdown-source-view .cm-content:has(.blackboard-embed.bb-wrap-experimental) { display: flow-root; }
+.markdown-source-view:has(.blackboard-embed.bb-wrap-experimental) :is(.HyperMD-header, h1, h2, h3, h4, h5, h6) { clear: both; }
+.markdown-preview-view.bb-narrow-note .blackboard-embed:is(.bb-layout-left, .bb-layout-right),
+.markdown-source-view.bb-narrow-note .blackboard-embed.bb-wrap-experimental {
   float: none;
   max-width: 100%;
   margin-left: auto;
@@ -116,8 +145,7 @@
   margin-left: auto;
   margin-right: auto;
 }
-.blackboard-embed.bb-wrap-preview::before {
-  content: "wrap: right";
+.bb-wrap-badge {
   position: absolute;
   right: var(--size-4-2);
   bottom: var(--size-4-2);
@@ -127,14 +155,15 @@
   color: var(--text-muted);
   background: var(--background-secondary);
   font-size: var(--font-smallest);
-  pointer-events: none;
+  pointer-events: auto;
+  max-width: calc(100% - 16px);
+  white-space: normal;
 }
-.blackboard-embed.bb-layout-right.bb-wrap-preview::before { content: "wrap: left"; }
 @media (hover: none) {
   .bb-frame-controls { opacity: 1; pointer-events: auto; }
 }
 @media print {
-  .bb-frame-controls, .bb-drop-indicator { display: none; }
+  .bb-frame-controls, .bb-drop-indicator, .bb-pane-tooltip, .bb-wrap-badge { display: none; }
   .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-left { float: left; max-width: 60%; margin-left: 0; margin-right: var(--size-4-4); }
   .markdown-preview-view.bb-narrow-note .blackboard-embed.bb-layout-right { float: right; max-width: 60%; margin-right: 0; margin-left: var(--size-4-4); }
 }

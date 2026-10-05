@@ -62,8 +62,8 @@ describe('BlackboardSettingTab', () => {
     const callbacks = (Setting as any)._lastOnChangeCallbacks;
     // File Storage callbacks first: drawingFolder(0), newFileLocation(1), autoExportSvg(2);
     // autoExportSvg is false by default so svgExportPath is absent. Then Appearance's
-    // boardBackground(3) and Drawing's recognizeShapes(4). Palette pickers follow, at 5.
-    const paletteStart = 5;
+    // wrapWhileEditing(3), boardBackground(4), recognizeShapes(5). Palette starts at 6.
+    const paletteStart = 6;
     await callbacks[paletteStart + 2]('#abcdef');
 
     expect(plugin.settings.paletteColors[2]).toBe('#abcdef');
@@ -119,9 +119,9 @@ describe('BlackboardSettingTab', () => {
 
     const names = nameSpy.mock.calls.map((c) => c[0]);
     expect(names).toContain('Show toolbar pill');
-    // autoExportSvg (1) + recognizeShapes (1) + the pill toggle (1) = 3 toggles when
+    // autoExportSvg, experimental wrap, recognizeShapes and the pill = 4 toggles when
     // autoExportSvg is false (which hides the SVG path text field, not a toggle).
-    expect(toggleSpy).toHaveBeenCalledTimes(3);
+    expect(toggleSpy).toHaveBeenCalledTimes(4);
   });
 
   it('toggling Show toolbar pill updates settings.showToolbarPill and persists', async () => {
@@ -330,5 +330,14 @@ describe('getSettingDefinitions (Obsidian 1.13+ settings search)', () => {
     await tab.setControlValue('showToolbarPill', false);
     expect(tab.getControlValue('showToolbarPill')).toBe(false);
     expect((tab as any).plugin.saveSettings).toHaveBeenCalled();
+  });
+  it('exposes the experimental wrap setting default off and persists an opt-in', async () => {
+    const tab = createTab(); tab.display();
+    expect(tab.getControlValue('wrapWhileEditing')).toBe(false);
+    expect(tab.containerEl.textContent).toContain('Wrap text around boards while editing (experimental)');
+    const items = tab.getSettingDefinitions().flatMap(group => group.items);
+    expect(items.find(item => item.control.key === 'wrapWhileEditing')?.control.type).toBe('toggle');
+    await tab.setControlValue('wrapWhileEditing', true);
+    expect(tab.getControlValue('wrapWhileEditing')).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ describe('DEFAULT_PLUGIN_SETTINGS', () => {
       textColor: '#ffffff',
       textFontSize: 20,
       recognizeShapes: false,
+      wrapWhileEditing: false,
     });
   });
 

@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin, TFile, View } from 'obsidian';
+import { MarkdownView, Notice, Plugin, TFile, View } from 'obsidian';
 import type { PluginSettings } from './domain/entities';
 import { DEFAULT_PLUGIN_SETTINGS, DEFAULT_TOOL_STATE, validateSettings } from './domain/entities';
 import type { IDrawingRepository } from './domain/ports';
@@ -13,9 +13,10 @@ import { mountBlackboardEmbed, unmountAllEmbeds } from './presentation/embed';
 import { SurfaceManager } from './presentation/surface-manager';
 import { DocumentStore } from './application/document-store';
 import { GlobalToolbar } from './presentation/global-toolbar';
-import { fitSavedEmbedSize, formatEmbedAlias } from './presentation/embed-size';
+import { fitSavedEmbedSize, formatEmbedAlias, parseEmbedAlias } from './presentation/embed-size';
 import { readRenderedAlias, applyEmbedLayout } from './presentation/embed-layout';
-import { moveActiveBoard, setActiveNoteBoard } from './presentation/embed-controls';
+import { moveActiveBoard, putActiveBoardOnOwnLine, setActiveNoteBoard } from './presentation/embed-controls';
+import { hostMarkdownView, noteCM } from './presentation/embed-note';
 import { rafCoalesce } from './presentation/dom-scheduling';
 import { ObsidianTextSidecarRepository } from './infrastructure/obsidian-text-sidecar-repository';
 import type { ITextSidecarRepository } from './domain/ports';
@@ -115,6 +116,11 @@ export default class BlackboardPlugin extends Plugin {
         callback: () => moveActiveBoard(this.app, direction),
       });
     }
+    this.addCommand({
+      id: 'put-board-on-own-line',
+      name: 'Blackboard: put board on its own line',
+      callback: () => putActiveBoardOnOwnLine(this.app),
+    });
     // The workspace container's document is the one every non-pop-out surface lives in;
     // pop-out documents are bound by TextController.attach as their surfaces mount.
     this.textController.bindDocument(this.app.workspace.containerEl?.ownerDocument ?? activeDocument);
@@ -261,7 +267,7 @@ export default class BlackboardPlugin extends Plugin {
             const fingerprint = formatEmbedAlias(alias);
             const mounted = embedEl.dataset.bbMounted === 'true';
             if (mounted && embedEl.dataset.bbAlias === fingerprint) {
-              applyEmbedLayout(embedEl, alias);
+              this.applyNoteLayout(embedEl, alias);
               return;
             }
             embedEl.dataset.bbAlias = fingerprint;
@@ -272,9 +278,10 @@ export default class BlackboardPlugin extends Plugin {
             } else {
               await this.applySavedEmbedSize(embedEl, file.path);
             }
-            applyEmbedLayout(embedEl, alias);
+            this.applyNoteLayout(embedEl, alias);
             if (!mounted) {
-              await mountBlackboardEmbed(this.repo, embedEl, file.path, this.settings, this.surfaceManager, this.toolManager, this.documentStore, this.textController, this.app);
+              await mountBlackboardEmbed(this.repo, embedEl, file.path, this.settings, this.surfaceManager, this.toolManager, this.documentStore, this.textController, this.app, () => this.openWrapSetting());
+              this.applyNoteLayout(embedEl, alias);
             }
           } catch (error) {
             console.warn('Blackboard: could not render note embed', error);
@@ -480,6 +487,29 @@ export default class BlackboardPlugin extends Plugin {
     this.globalToolbar?.setPillEnabled(this.settings.showToolbarPill);
     // Re-paint every mounted surface so a board-background change is live (issue #13).
     this.applyBoardBackground();
+    // Refresh mounted boards in every leaf, including pop-out documents.
+    this.app.workspace.iterateAllLeaves(leaf => {
+      if (!(leaf.view instanceof MarkdownView)) return;
+      for (const el of Array.from(leaf.view.contentEl.querySelectorAll<HTMLElement>('.blackboard-embed'))) {
+        this.applyNoteLayout(el, parseEmbedAlias(el.dataset.bbLayout));
+      }
+    });
+  }
+
+  private applyNoteLayout(el: HTMLElement, alias: ReturnType<typeof parseEmbedAlias>): void {
+    applyEmbedLayout(el, alias, this.settings.wrapWhileEditing, () => this.openWrapSetting(), () => {
+      const view = hostMarkdownView(this.app, el);
+      if (view?.editor) noteCM(view.editor)?.requestMeasure?.();
+    });
+  }
+
+  private openWrapSetting(): void {
+    // Settings dialog is an optional Obsidian internal; leave a useful notice on older hosts.
+    const app = this.app as typeof this.app & { setting?: { open(): void; openTabById(id: string): void } };
+    if (app.setting) {
+      app.setting.open();
+      app.setting.openTabById(this.manifest.id);
+    } else new Notice('Open the plugin settings and turn on the experimental wrap setting.');
   }
 
   /** Paint every mounted drawing surface with the configured board background (issue #13). */

@@ -71,6 +71,11 @@ export class BlackboardSettingTab extends PluginSettingTab {
         heading: 'Appearance',
         items: [
           {
+            name: 'Wrap text around boards while editing (experimental)',
+            desc: 'Use real text wrap in Live Preview. Turn off if cursor placement or scrolling is unstable.',
+            control: { type: 'toggle', key: 'wrapWhileEditing' },
+          },
+          {
             name: 'Board background',
             desc: 'Color painted behind every drawing (Canvas node, Markdown embed, and the ' +
               'full-page view). Default black; set white for a whiteboard.',
@@ -189,6 +194,14 @@ export class BlackboardSettingTab extends PluginSettingTab {
 
     // Appearance: the board (surface) background, distinct from the pen palette below.
     new Setting(containerEl).setName('Appearance').setHeading();
+
+    new Setting(containerEl)
+      .setName('Wrap text around boards while editing (experimental)')
+      .setDesc('Experimental editor floats. Disable this option if editing or scrolling becomes unstable.')
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.wrapWhileEditing).onChange(async value => {
+        this.plugin.settings.wrapWhileEditing = value;
+        await this.plugin.saveSettings();
+      }));
 
     new Setting(containerEl)
       .setName('Board background')

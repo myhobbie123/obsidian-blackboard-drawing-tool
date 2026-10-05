@@ -1,8 +1,9 @@
-import { MarkdownView, Notice, type App } from 'obsidian';
-import { findEmbedLinks, parseEmbedAlias, planEmbedLayoutEdit, type EmbedLayout } from './embed-size';
-import { noteBlocks, movableBlock, planEmbedMove, moveTargetAt } from './embed-move';
+import { MarkdownView, Menu, Notice, type App } from 'obsidian';
+import { findEmbedLinks, findEmbedTokens, parseEmbedAlias, type EmbedLayout } from './embed-size';
+import { noteBlocks, movableBlock, planEmbedMove, planEmbedStep, planEmbedOwnLine, planEmbedWrap, inspectEmbedMove, embedRefusalAtCursor, MOVE_MESSAGES, moveTargetAt, type MoveRefusal } from './embed-move';
 import { hostMarkdownView, editableNote, resolveEmbedLink, commitNoteEdit, noteCM } from './embed-note';
 import { applyEmbedLayout, watchEmbedLayout } from './embed-layout';
+import { attachPaneTooltip } from './embed-tooltip';
 
 let activeBoard: HTMLElement | null = null;
 export function setActiveNoteBoard(el: HTMLElement | null): void {
@@ -18,26 +19,59 @@ function boardOccurrence(app: App, view: MarkdownView, source: string, el?: HTML
     return link ? links.findIndex(m => m.start === link.start) : -1;
   }
   const cursor = view.editor.posToOffset(view.editor.getCursor());
-  return links.findIndex(link => {
+  const raw = findEmbedTokens(source).find(link => cursor >= link.start && cursor < link.end);
+  if (raw) return links.findIndex(link => link.start === raw.start);
+  const exact = links.findIndex(link => cursor >= link.start && cursor < link.end);
+  if (exact >= 0) return exact;
+  const onLine = links.filter(link => {
     const start = source.lastIndexOf('\n', link.start - 1) + 1;
     const end = source.indexOf('\n', link.end);
     return cursor >= start && cursor <= (end < 0 ? source.length : end);
   });
+  return onLine.length === 1 ? links.indexOf(onLine[0]) : -1;
 }
 
-function refuse(): void { new Notice('Blackboard: use a standalone embed in an editable note; ambiguous or unsafe moves are refused.'); }
+function refuse(reason?: MoveRefusal): void { new Notice('Blackboard: ' + (reason ? MOVE_MESSAGES[reason] : 'Open an editable note in Live Preview or Source mode and choose a board. Drop only between top-level blocks.')); }
+
+function sourceRefusal(source: string, occurrence: number): void {
+  const info = inspectEmbedMove(source, occurrence);
+  refuse('reason' in info ? info.reason : 'ambiguous');
+}
 
 function moveBoard(app: App, view: MarkdownView, direction: -1 | 1, el?: HTMLElement, path?: string): void {
   if (!editableNote(view)) { refuse(); return; }
   const source = view.editor.getValue();
   const occurrence = boardOccurrence(app, view, source, el, path);
-  const index = movableBlock(source, occurrence);
-  if (index < 0) { refuse(); return; }
-  const target = direction < 0 ? index - 1 : index + 2;
-  if (target < 0 || target > noteBlocks(source).length) return;
-  const edit = planEmbedMove(source, occurrence, target);
-  if (!edit) { refuse(); return; }
+  const info = inspectEmbedMove(source, occurrence);
+  if ('reason' in info) { refuse(!el && info.reason === 'ambiguous' ? embedRefusalAtCursor(source, view.editor.posToOffset(view.editor.getCursor())) : info.reason); return; }
+  const edit = planEmbedStep(source, occurrence, direction);
+  if (!edit) {
+    new Notice(direction < 0
+      ? 'Blackboard: this board is already at the first movable block. Use Move down or drag it to another gap.'
+      : 'Blackboard: this board is already at the last block. Use Move up or drag it to another gap.');
+    return;
+  }
   if (commitNoteEdit(view, source, edit, edit.boardStart)) setActiveNoteBoard(null);
+}
+
+function ownLine(app: App, view: MarkdownView, el?: HTMLElement, path?: string): void {
+  if (!editableNote(view)) { refuse(); return; }
+  const source = view.editor.getValue();
+  const occurrence = boardOccurrence(app, view, source, el, path);
+  const info = inspectEmbedMove(source, occurrence);
+  if ('reason' in info) { refuse(!el && info.reason === 'ambiguous' ? embedRefusalAtCursor(source, view.editor.posToOffset(view.editor.getCursor())) : info.reason); return; }
+  const edit = planEmbedOwnLine(source, occurrence);
+  if (!edit) { new Notice('Blackboard: this board already has its own paragraph. Use the arrows to reposition it.'); return; }
+  if (edit && commitNoteEdit(view, source, edit, edit.boardStart)) setActiveNoteBoard(null);
+}
+
+export function putActiveBoardOnOwnLine(app: App): void {
+  const view = app.workspace.getActiveViewOfType(MarkdownView);
+  if (!view) { refuse(); return; }
+  const el = activeBoard && view.contentEl.contains(activeBoard) ? activeBoard : undefined;
+  const src = el?.getAttribute('src');
+  const path = src ? app.metadataCache.getFirstLinkpathDest(src, view.file?.path ?? '')?.path : undefined;
+  ownLine(app, view, el, path);
 }
 
 export function moveActiveBoard(app: App, direction: -1 | 1): void {
@@ -49,7 +83,7 @@ export function moveActiveBoard(app: App, direction: -1 | 1): void {
   moveBoard(app, view, direction, el, path);
 }
 
-export function attachBoardControls(app: App, el: HTMLElement, path: string, signal: AbortSignal, activate: () => void): () => void {
+export function attachBoardControls(app: App, el: HTMLElement, path: string, signal: AbortSignal, activate: () => void, experimentalWrap: () => boolean = () => false, openWrapSetting: () => void = () => {}): () => void {
   const doc = el.ownerDocument;
   const win = doc.defaultView ?? window;
   const controls = el.createDiv({ cls: 'bb-frame-controls' });
@@ -58,45 +92,53 @@ export function attachBoardControls(app: App, el: HTMLElement, path: string, sig
   controls.addEventListener('pointerdown', e => { e.stopPropagation(); activate(); setActiveNoteBoard(el); }, { signal });
   controls.addEventListener('click', e => e.stopPropagation(), { signal });
   controls.addEventListener('focusin', () => { activate(); setActiveNoteBoard(el); refresh(); }, { signal });
+  const stopTooltips: Array<() => void> = [];
   const button = (text: string, title: string, action?: () => void) => {
     const b = controls.createEl('button');
-    b.type = 'button'; b.textContent = text; b.title = title; b.setAttribute('aria-label', title);
+    b.type = 'button'; b.textContent = text; b.setAttribute('aria-label', title);
+    stopTooltips.push(attachPaneTooltip(b, () => hostMarkdownView(app, el)?.contentEl ?? el, signal));
     if (action) b.addEventListener('click', action, { signal });
     return b;
   };
   const grip = button('⠿', 'Drag to move board');
   grip.classList.add('bb-move-grip');
-  const up = button('▲', 'Move board up', () => { const view = hostMarkdownView(app, el); if (view) moveBoard(app, view, -1, el, path); });
-  const down = button('▼', 'Move board down', () => { const view = hostMarkdownView(app, el); if (view) moveBoard(app, view, 1, el, path); });
+  grip.addEventListener('click', () => {
+    const view = hostMarkdownView(app, el);
+    if (!editableNote(view)) { refuse(); return; }
+    const source = view.editor.getValue();
+    const info = inspectEmbedMove(source, boardOccurrence(app, view, source, el, path));
+    if ('reason' in info) refuse(info.reason);
+  }, { signal });
+  const up = button('▲', 'Move up', () => { const view = hostMarkdownView(app, el); if (view) moveBoard(app, view, -1, el, path); });
+  const down = button('▼', 'Move down', () => { const view = hostMarkdownView(app, el); if (view) moveBoard(app, view, 1, el, path); });
+  const extract = button('↵', 'Put on its own line', () => { const view = hostMarkdownView(app, el); if (view) ownLine(app, view, el, path); });
+  grip.addEventListener('contextmenu', e => {
+    e.preventDefault(); e.stopPropagation();
+    const menu = new Menu();
+    menu.addItem(item => item.setTitle('Put on its own line').onClick(() => { const view = hostMarkdownView(app, el); if (view) ownLine(app, view, el, path); }));
+    menu.showAtMouseEvent(e);
+  }, { signal });
   const layouts = (['center', 'left', 'right'] as EmbedLayout[]).map(layout => button(
     layout === 'center' ? '↔' : layout === 'left' ? '◧' : '◨',
-    layout === 'center' ? 'Inline (center)' : layout === 'left' ? 'Left, text wraps right' : 'Right, text wraps left',
+    layout === 'center' ? 'Center' : layout === 'left' ? 'Board left, text on the right' : 'Board right, text on the left',
     () => {
       const view = hostMarkdownView(app, el);
       if (!editableNote(view)) { refuse(); return; }
       const source = view.editor.getValue();
-      const link = resolveEmbedLink(app, view, el, path, source);
-      if (!link || parseEmbedAlias(link.alias).ambiguous) { refuse(); return; }
-      const edit = planEmbedLayoutEdit(source, p => p === link.linkpath, layout,
-        findEmbedLinks(source).filter(m => m.linkpath === link.linkpath).findIndex(m => m.start === link.start));
-      if (edit && commitNoteEdit(view, source, edit)) {
-        applyEmbedLayout(el, parseEmbedAlias(findEmbedLinks(edit.source).find(m => m.start === link.start)?.alias));
+      const occurrence = boardOccurrence(app, view, source, el, path);
+      const info = inspectEmbedMove(source, occurrence);
+      if ('reason' in info) { refuse(info.reason); return; }
+      if (parseEmbedAlias(info.link.alias).ambiguous) { refuse('alias'); return; }
+      const edit = planEmbedWrap(source, occurrence, layout);
+      if (edit && commitNoteEdit(view, source, edit, edit.boardStart)) {
+        applyEmbedLayout(el, parseEmbedAlias(findEmbedLinks(edit.source).find(m => m.start === edit.boardStart)?.alias), experimentalWrap(), openWrapSetting);
         refresh();
       }
     }));
   function refresh() {
     const view = hostMarkdownView(app, el);
     const editable = editableNote(view);
-    for (const b of [grip, up, down]) b.hidden = !editable;
-    let movable = false;
-    if (editable) {
-      const source = view.editor.getValue();
-      movable = movableBlock(source, boardOccurrence(app, view, source, el, path)) >= 0;
-    }
-    for (const b of [grip, up, down]) {
-      b.disabled = !movable;
-      if (!movable) b.title = 'Moving requires an unambiguous embed on its own line, outside nested or protected blocks.';
-    }
+    for (const b of [grip, up, down, extract]) b.hidden = !editable;
     for (let index = 0; index < layouts.length; index++) {
       layouts[index].disabled = !editable;
       layouts[index].setAttribute('aria-pressed', String((el.dataset.bbLayout ?? 'center') === ['center', 'left', 'right'][index]));
@@ -104,7 +146,10 @@ export function attachBoardControls(app: App, el: HTMLElement, path: string, sig
   }
   refresh();
   el.addEventListener('pointerenter', refresh, { signal });
-  const stopLayout = watchEmbedLayout(el);
+  const stopLayout = watchEmbedLayout(el, () => {
+    const view = hostMarkdownView(app, el);
+    if (view?.editor) noteCM(view.editor)?.requestMeasure?.();
+  });
   const indicator = doc.body.createDiv();
   indicator.className = 'bb-drop-indicator'; indicator.hidden = true;
   let drag: { view: MarkdownView; source: string; occurrence: number; pointer: number; target: number | null; self: boolean; x: number; y: number; moved: boolean; startX: number; startY: number } | null = null;
@@ -137,7 +182,8 @@ export function attachBoardControls(app: App, el: HTMLElement, path: string, sig
         if (top !== undefined && bottom !== undefined) {
           const target = moveTargetAt(source, pos, y > (top + bottom) / 2);
           const from = movableBlock(source, drag.occurrence);
-          drag.self = target === from || target === from + 1;
+          const info = inspectEmbedMove(source, drag.occurrence);
+          drag.self = !('reason' in info) && info.standalone && (target === from || target === from + 1);
           if (target !== null && planEmbedMove(source, drag.occurrence, target)) {
             const blocks = noteBlocks(source);
             const boundary = target < blocks.length ? blocks[target].start : blocks[blocks.length - 1].end;
@@ -160,7 +206,7 @@ export function attachBoardControls(app: App, el: HTMLElement, path: string, sig
     if (!editableNote(view)) { refuse(); return; }
     const source = view.editor.getValue();
     const occurrence = boardOccurrence(app, view, source, el, path);
-    if (movableBlock(source, occurrence) < 0) { refuse(); return; }
+    if (movableBlock(source, occurrence) < 0) { sourceRefusal(source, occurrence); return; }
     drag = { view, source, occurrence, pointer: e.pointerId, target: null, self: false, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false };
     try { grip.setPointerCapture(e.pointerId); } catch { cancel(); refuse(); return; }
     frame = win.requestAnimationFrame(tick);
@@ -188,5 +234,5 @@ export function attachBoardControls(app: App, el: HTMLElement, path: string, sig
   grip.addEventListener('pointercancel', cancel, { signal });
   grip.addEventListener('lostpointercapture', cancel, { signal });
   doc.addEventListener('keydown', e => { if (drag && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); } }, { capture: true, signal });
-  return () => { cancel(); controls.remove(); indicator.remove(); stopLayout(); if (activeBoard === el) setActiveNoteBoard(null); };
+  return () => { cancel(); for (const stop of stopTooltips) stop(); controls.remove(); indicator.remove(); stopLayout(); if (activeBoard === el) setActiveNoteBoard(null); };
 }
