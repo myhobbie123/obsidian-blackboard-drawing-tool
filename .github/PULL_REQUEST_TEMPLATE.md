@@ -10,7 +10,7 @@
 
 ## Checklist
 
-- [ ] `npm run check` passes (typecheck + tests + build)
+- [ ] `npm run check` passes (typecheck + lint + tests + build)
 - [ ] Tests added or updated for the change
 - [ ] Behavior changes are reflected in the README/docs
 - [ ] iPad-specific changes verified (device or `test/webkit` harness), if applicable

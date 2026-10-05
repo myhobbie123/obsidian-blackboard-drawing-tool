@@ -41,8 +41,8 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: Blackboard version
-      placeholder: e.g. 0.10.3
+      label: Blackboard Text version
+      placeholder: e.g. 1.3.0
     validations:
       required: true
   - type: textarea
