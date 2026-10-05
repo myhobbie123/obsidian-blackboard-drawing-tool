@@ -2,6 +2,53 @@ import { FILE_EXTENSION } from '../domain/entities';
 
 export interface EmbedSize { width: string | null; height: string | null; }
 
+export type EmbedLayout = 'left' | 'right' | 'center';
+export interface EmbedAlias {
+  layout: EmbedLayout | null;
+  size: EmbedSize | null;
+  /** Unrecognised tokens, including whitespace, survive every rewrite. */
+  unknownTokens: string[];
+  ambiguous: boolean;
+}
+
+export function parseEmbedAlias(alias: string | null | undefined): EmbedAlias {
+  const result: EmbedAlias = { layout: null, size: null, unknownTokens: [], ambiguous: false };
+  if (!alias) return result;
+  for (const token of alias.split('|')) {
+    const trimmed = token.trim();
+    if (trimmed === 'left' || trimmed === 'right' || trimmed === 'center') {
+      if (result.layout !== null) result.ambiguous = true;
+      result.layout = trimmed;
+    } else {
+      const size = parseEmbedSize(trimmed);
+      if (size) {
+        if (result.size !== null) result.ambiguous = true;
+        result.size = size;
+      } else result.unknownTokens.push(token);
+    }
+  }
+  return result;
+}
+
+export function formatEmbedAlias(alias: Pick<EmbedAlias, 'layout' | 'size'> & { unknownTokens?: string[] }): string {
+  const tokens: string[] = [];
+  if (alias.layout && alias.layout !== 'center') tokens.push(alias.layout);
+  if (alias.size?.width) {
+    tokens.push(alias.size.width.replace(/px$/, '') + (alias.size.height ? 'x' + alias.size.height.replace(/px$/, '') : ''));
+  }
+  tokens.push(...(alias.unknownTokens ?? []));
+  return tokens.join('|');
+}
+
+/** DOM may expose the full alias in alt, but only its size in width. */
+export function aliasFromAttributes(alt: string | null, width: string | null): EmbedAlias {
+  if (alt?.includes('|')) return parseEmbedAlias(alt);
+  if (width?.includes('|')) return parseEmbedAlias(width);
+  const a = parseEmbedAlias(alt);
+  const w = parseEmbedAlias(width);
+  return { ...a, size: w.size ?? a.size, layout: a.layout ?? w.layout };
+}
+
 /**
  * Parse Obsidian's embed size alias (the text after `|` in `![[file|...]]`):
  *   "640x480" -> {width:"640px", height:"480px"}
@@ -116,7 +163,25 @@ export function findEmbedLinks(source: string, extension = FILE_EXTENSION): Embe
 
 /** The replacement text for an embed whose size alias becomes `WxH`. */
 export function embedLinkWithSize(link: EmbedLinkMatch, width: number, height: number): string {
-  return `![[${link.linkpath}|${Math.round(width)}x${Math.round(height)}]]`;
+  const alias = parseEmbedAlias(link.alias);
+  alias.size = { width: `${Math.round(width)}px`, height: `${Math.round(height)}px` };
+  return linkWithAlias(link, alias);
+}
+
+function linkWithAlias(link: EmbedLinkMatch, alias: EmbedAlias): string {
+  const formatted = formatEmbedAlias(alias);
+  // An empty unknown token is still an alias, and must retain its pipe.
+  return `![[${link.linkpath}${formatted || alias.unknownTokens.length ? '|' + formatted : ''}]]`;
+}
+
+export function planEmbedLayoutEdit(source: string, isTarget: (path: string) => boolean, layout: EmbedLayout, occurrence = 0): EmbedAliasEdit | null {
+  const link = findEmbedLinks(source).filter(m => isTarget(m.linkpath))[occurrence];
+  if (!link) return null;
+  const alias = parseEmbedAlias(link.alias);
+  if (alias.ambiguous || (alias.layout ?? 'center') === layout) return null;
+  alias.layout = layout;
+  const text = linkWithAlias(link, alias);
+  return { start: link.start, end: link.end, text, source: source.slice(0, link.start) + text + source.slice(link.end) };
 }
 
 export interface EmbedAliasEdit {
@@ -134,7 +199,7 @@ export interface EmbedAliasEdit {
  *
  * `isTarget` resolves a written linkpath to the drawing being resized (link resolution is
  * Obsidian's job, so it stays out of here). `occurrence` selects among duplicates of the
- * same drawing in one note; out-of-range or ambiguous callers should pass 0.
+ * same drawing in one note; out-of-range or ambiguous callers must refuse.
  * Returns null when there is nothing to do — no match, or the alias is already `WxH`.
  */
 export function planEmbedSizeEdit(
@@ -145,8 +210,8 @@ export function planEmbedSizeEdit(
   occurrence = 0,
 ): EmbedAliasEdit | null {
   const matches = findEmbedLinks(source).filter((m) => isTarget(m.linkpath));
-  const link = matches[occurrence] ?? matches[0];
-  if (!link) return null;
+  const link = matches[occurrence];
+  if (!link || parseEmbedAlias(link.alias).ambiguous || !Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) return null;
   const text = embedLinkWithSize(link, width, height);
   if (text === source.slice(link.start, link.end)) return null;
   return {

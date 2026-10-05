@@ -107,9 +107,9 @@ describe('findEmbedLinks / planEmbedSizeEdit', () => {
     expect(plan(source, 640, 480, 1)!.source).toBe('one ![[D.blackboard|10x10]]\ntwo ![[D.blackboard|640x480]]\n');
   });
 
-  it('falls back to the first occurrence when the index is out of range', () => {
+  it('refuses an out-of-range occurrence', () => {
     const source = '![[D.blackboard]] ![[D.blackboard]]';
-    expect(plan(source, 640, 480, 9)!.source).toBe('![[D.blackboard|640x480]] ![[D.blackboard]]');
+    expect(plan(source, 640, 480, 9)).toBeNull();
   });
 
   it('never rewrites an embed inside a fenced code block', () => {
