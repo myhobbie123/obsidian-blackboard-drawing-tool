@@ -1,0 +1,2 @@
+- First list item: anonymized text ![[Drawing 1.blackboard|right|495x325]]
+- Another item [ref.23, 16:49; accepted].![[Drawing 2.blackboard|left|268x422]]![[Drawing 3.blackboard|left]]

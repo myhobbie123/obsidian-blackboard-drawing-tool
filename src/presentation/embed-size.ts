@@ -103,7 +103,7 @@ export interface EmbedLinkMatch {
  * (``` / ~~~, any fence length, closed or unterminated) and inline code spans.
  * A `![[x.blackboard]]` inside them is documentation, not an embed.
  */
-function codeRanges(source: string): Array<[number, number]> {
+export function codeRanges(source: string): Array<[number, number]> {
   const ranges: Array<[number, number]> = [];
   const lines = source.split('\n');
   let offset = 0;
@@ -146,11 +146,15 @@ function codeRanges(source: string): Array<[number, number]> {
 export function findEmbedLinks(source: string, extension = FILE_EXTENSION): EmbedLinkMatch[] {
   const ranges = codeRanges(source);
   const isCode = (i: number) => ranges.some(([s, e]) => i >= s && i < e);
+  return findEmbedTokens(source, extension).filter(m => !isCode(m.start));
+}
+
+/** Raw tokens are used only to explain protected-source refusals, never to edit code. */
+export function findEmbedTokens(source: string, extension = FILE_EXTENSION): EmbedLinkMatch[] {
   const re = new RegExp(String.raw`!\[\[([^[\]|\n]+\.${extension})(\|[^\]\n]*)?\]\]`, 'gi');
   const found: EmbedLinkMatch[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
-    if (isCode(m.index)) continue;
     found.push({
       start: m.index,
       end: m.index + m[0].length,

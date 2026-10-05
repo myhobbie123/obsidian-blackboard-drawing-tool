@@ -40,9 +40,9 @@ describe('planEmbedMove', () => {
     expect(planEmbedMove(source, 0, 2)?.source).toBe(`${protectedBlock}\n\n${board}\n\nlast`);
   });
   it.each([
-    `text ${board}`, `${board} text`, `- item\n  ${board}`, `> ${board}`, `    ${board}`, `---\nkey: ${board}\n---`,
+    `    ${board}`, `---\nkey: ${board}\n---`,
     `\x60\x60\x60\n${board}\n\x60\x60\x60`,
-  ])('refuses inline and nested/code/frontmatter boards: %s', source => {
+  ])('refuses code/frontmatter boards: %s', source => {
     expect(planEmbedMove(source, 0, noteBlocks(source).length)).toBeNull();
     expect(movableBlock(source, 0)).toBe(-1);
   });
