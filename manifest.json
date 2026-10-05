@@ -1,6 +1,6 @@
 {
   "id": "blackboard-text",
-  "name": "Blackboard Text",
+  "name": "Blackboard Drawing Tool",
   "version": "1.3.0",
   "minAppVersion": "1.6.6",
   "description": "Handwriting and drawing boards inside your notes: pen, shapes, text tool, selection, Q/E/T shortcuts. Fork of Blackboard by James Wolensky with fixes for board wipe on empty load and invisible strokes.",

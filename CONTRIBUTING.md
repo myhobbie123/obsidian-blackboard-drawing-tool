@@ -1,12 +1,12 @@
-# Contributing to Blackboard Text
+# Contributing to Blackboard Drawing Tool
 
-Report bugs and propose changes in [the fork repository](https://github.com/myhobbie123/obsidian-blackboard-text). Keep pull requests focused and describe the resulting behavior.
+Report bugs and propose changes in [the fork repository](https://github.com/myhobbie123/obsidian-blackboard-drawing-tool). Keep pull requests focused and describe the resulting behavior.
 
 Use Node.js 24 (see `.nvmrc`):
 
 ```sh
-git clone https://github.com/myhobbie123/obsidian-blackboard-text.git
-cd obsidian-blackboard-text
+git clone https://github.com/myhobbie123/obsidian-blackboard-drawing-tool.git
+cd obsidian-blackboard-drawing-tool
 npm ci
 npm run check
 ```

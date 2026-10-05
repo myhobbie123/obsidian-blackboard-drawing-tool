@@ -1,4 +1,4 @@
-Blackboard Text
+Blackboard Drawing Tool
 ===============
 
 This is a substantially modified fork of Blackboard by James Wolensky (MIT):
@@ -6,7 +6,7 @@ https://github.com/jameswolensky/obsidian-blackboard
 It is not affiliated with or endorsed by the original author.
 
 Original work: Copyright (c) 2026 James Wolensky.
-Fork changes: Copyright (c) 2026 Tatyana (Blackboard Text fork).
+Fork changes: Copyright (c) 2026 Tatyana (Blackboard Drawing Tool fork).
 The plugin's MIT license and both copyright notices are retained in LICENSE.
 
 The fork uses plugin ID blackboard-text. The original uses blackboard.

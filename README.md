@@ -1,6 +1,6 @@
-# Blackboard Text
+# Blackboard Drawing Tool
 
-Blackboard Text adds handwriting and drawing boards to your notes, Markdown embeds, and Canvas cards. Use a mouse or stylus to draw, add text labels and shapes, and select content on a shared drawing surface.
+Blackboard Drawing Tool adds handwriting and drawing boards to your notes, Markdown embeds, and Canvas cards. Use a mouse or stylus to draw, add text labels and shapes, and select content on a shared drawing surface.
 
 ## Fork notice
 
@@ -17,7 +17,7 @@ This is a fork of [Blackboard](https://github.com/jameswolensky/obsidian-blackbo
 
 ## Features / usage
 
-Create a board with **Blackboard Text: New drawing** in the command palette. Use **Insert drawing** or **Insert existing drawing** in a note or Canvas. Drawing files use the `.blackboard` extension and can also be opened directly.
+Create a board with **Blackboard Drawing Tool: New drawing** in the command palette. Use **Insert drawing** or **Insert existing drawing** in a note or Canvas. Drawing files use the `.blackboard` extension and can also be opened directly.
 
 Embed a board in Markdown with `![[Drawing.blackboard]]`. Set an explicit embed size with `![[Drawing.blackboard|600x400]]` or `![[Drawing.blackboard|80%]]`.
 
@@ -38,12 +38,12 @@ Screenshots are from the original Blackboard; the fork's UI differs slightly.
 ### BRAT (recommended)
 
 1. Install and enable **BRAT** from Obsidian's community plugins.
-2. In BRAT, choose **Add Beta plugin** and enter `myhobbie123/obsidian-blackboard-text`.
-3. Enable **Blackboard Text** in your installed plugins.
+2. In BRAT, choose **Add Beta plugin** and enter `myhobbie123/obsidian-blackboard-drawing-tool`.
+3. Enable **Blackboard Drawing Tool** in your installed plugins.
 
 ### Manual
 
-Download `main.js`, `manifest.json`, and `styles.css` from the [latest GitHub Release](https://github.com/myhobbie123/obsidian-blackboard-text/releases/latest). Put all three files in `<vault>/.obsidian/plugins/blackboard-text/`, reload Obsidian, and enable **Blackboard Text**.
+Download `main.js`, `manifest.json`, and `styles.css` from the [latest GitHub Release](https://github.com/myhobbie123/obsidian-blackboard-drawing-tool/releases/latest). Put all three files in `<vault>/.obsidian/plugins/blackboard-text/`, reload Obsidian, and enable **Blackboard Drawing Tool**.
 
 Do not enable this fork and the original Blackboard together in the same vault. Their plugin IDs differ, but both register the `blackboard-view` view type and `.blackboard` file extension, so they conflict.
 
