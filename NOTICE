@@ -1,22 +1,50 @@
-Blackboard (Text fork)
-======================
+Blackboard Text
+===============
 
-This plugin is a fork of **Blackboard** by James Wolensky, at upstream version
-1.2.1 (https://github.com/jameswolensky/obsidian-blackboard).
+This is a substantially modified fork of Blackboard by James Wolensky (MIT):
+https://github.com/jameswolensky/obsidian-blackboard
+It is not affiliated with or endorsed by the original author.
 
-Upstream work is Copyright (c) James Wolensky and is distributed under the MIT
-License; the full text is in LICENSE and applies unchanged to this fork.
+Original work: Copyright (c) 2026 James Wolensky.
+Fork changes: Copyright (c) 2026 Tatyana (Blackboard Text fork).
+The plugin's MIT license and both copyright notices are retained in LICENSE.
 
-Fork additions (text tool with a `.blackboard-text.json` sidecar, Q/E/T tool
-hotkeys, drag-a-rectangle drawing-area insertion, and a set of rendering and
-input performance fixes) are Copyright (c) Tatyana and are released under the
-same MIT License.
+The fork uses plugin ID blackboard-text. The original uses blackboard.
+Both register blackboard-view and the .blackboard extension; do not enable
+both plugins together in the same vault.
 
-The fork changes the plugin id to `blackboard-text` so it can be installed
-alongside upstream Blackboard. The `.blackboard` file extension, the
-`blackboard-view` view type and every `blackboard-*` CSS class are deliberately
-unchanged, so drawings remain interchangeable with upstream.
+Bundled third-party packages
+---------------------------
 
-Bundled third-party code:
-  - perfect-freehand (MIT), Steve Ruiz
-  - iro.js (MPL 2.0), James Daniel
+perfect-freehand -- MIT -- Steve Ruiz
+Copyright (c) 2021 Stephen Ruiz Ltd.
+Package: https://www.npmjs.com/package/perfect-freehand
+Source and license: https://github.com/steveruizok/perfect-freehand
+Used for pressure-sensitive stroke geometry.
+
+@jaames/iro (iro.js) -- MPL-2.0 -- James Daniel
+Copyright (c) 2016-2021 James Daniel.
+Package: https://www.npmjs.com/package/@jaames/iro
+Source and license: https://github.com/jaames/iro.js
+The library is used unmodified (bundled/minified for distribution).
+Its source is available at the source URL above; its covered code remains
+licensed under MPL-2.0: https://www.mozilla.org/MPL/2.0/
+Used for the color wheel.
+
+iro.js's distributed bundle also contains these third-party libraries:
+
+@irojs/iro-core -- MPL-2.0 -- James Daniel
+Package: https://www.npmjs.com/package/@irojs/iro-core
+Source and license: https://github.com/irojs/iro-core
+Used unmodified as included in iro.js; its source is available at the URL
+above and in iro.js's source dependencies. Covered code remains MPL-2.0.
+
+preact -- MIT -- Jason Miller
+Copyright (c) 2015-present Jason Miller.
+Package: https://www.npmjs.com/package/preact
+Source and license: https://github.com/preactjs/preact
+Used as included in iro.js's distributed bundle. Its embedded version is
+determined by iro.js's build, not the separately installed npm dependency.
+
+The MIT permission and warranty text in LICENSE also applies to the MIT
+libraries credited here, with each library's own copyright notice above.

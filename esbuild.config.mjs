@@ -3,6 +3,7 @@ import process from "process";
 import os from "node:os";
 import { execSync } from "node:child_process";
 import { builtinModules } from "node:module";
+import { readFileSync } from "node:fs";
 
 const prod = process.argv[2] === "production";
 
@@ -53,4 +54,8 @@ esbuild.build({
   treeShaking: true,
   outfile: "main.js",
   minify: prod,
+  // Keep license terms and third-party notices with the installable asset.
+  banner: {
+    js: `/*\n${readFileSync("LICENSE", "utf8")}\n${readFileSync("NOTICE", "utf8")}*/`,
+  },
 }).catch(() => process.exit(1));
