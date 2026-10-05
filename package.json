@@ -1,6 +1,6 @@
 {
   "name": "blackboard-text",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Handwriting and drawing boards inside your notes: pen, shapes, text tool, selection, Q/E/T shortcuts. Fork of Blackboard by James Wolensky with fixes for board wipe on empty load and invisible strokes.",
   "main": "main.js",
   "scripts": {
