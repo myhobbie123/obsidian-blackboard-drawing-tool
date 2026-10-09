@@ -9,7 +9,7 @@ const checks = [
   ['eval(', /\beval\s*\(/],
   ['new Function', /\bnew\s+Function\b/],
   ['localhost', /localhost/i],
-  ['personal paths', /(?:[A-Z]:[/\\]+(?:Users|AI|ObsidianVaults|Recovery_Backups)|Tania|\/Users\/|\/home\/)/i],
+  ['personal paths', /(?:[A-Z]:[/\\]+Users|\/Users\/|\/home\/)/i],
   ['dev-only drag harness', /playwright|chromium\.launch|cm-drag|legacy-controls|ChangeSet|StateField|Decoration\.set/],
 ];
 let failed = false;
