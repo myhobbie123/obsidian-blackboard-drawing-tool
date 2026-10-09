@@ -1,6 +1,46 @@
 # Blackboard Drawing Tool
 
-Blackboard Drawing Tool adds handwriting and drawing boards to your notes, Markdown embeds, and Canvas cards. Use a mouse or stylus to draw, add text labels and shapes, and select content on a shared drawing surface.
+Draw by hand right inside your Obsidian notes. A board lives in the note like a picture, but you can keep drawing on it, move it anywhere in the text, and let the text wrap around it.
+
+🇷🇺 [Русская версия](README.ru.md)
+
+## Features
+
+- **Draw inside a note** with a mouse, pen tablet or stylus. No separate app, no switching windows.
+- **Tools:** pen, highlighter, eraser, text labels, shapes (line, arrow, rectangle, ellipse) and selection.
+- **Colors and sizes** for every tool, plus undo/redo.
+- **Quick keys:** **Q** pen, **E** eraser, **T** text. They work on any keyboard layout.
+- **Resize** a board by dragging its edges.
+- **Move a board anywhere in the note:** grab the ⠿ handle (or hold **Alt** and drag the board) and drop it between any lines, even between list items.
+- **Text wrap like in Word:** put the board on the left or right and the text flows beside it (in Reading view; experimental while editing).
+- **Works in Canvas** cards and as a standalone drawing file.
+- **Optional SVG export** of every drawing.
+- **Private:** no internet access, no tracking. Everything stays in your vault.
+
+## Installation
+
+### With BRAT (recommended, updates automatically)
+
+1. In Obsidian open **Settings → Community plugins**. If you see *Restricted mode*, turn it off.
+2. Click **Browse**, search for **BRAT**, click **Install**, then **Enable**.
+3. Press **Ctrl+P** (Cmd+P on Mac), type **BRAT** and choose **Add a beta plugin for testing**.
+4. Paste `myhobbie123/obsidian-blackboard-drawing-tool` and click **Add plugin**.
+5. Back in **Settings → Community plugins**, turn on **Blackboard Drawing Tool**.
+
+### Manually
+
+1. Open the [latest release](https://github.com/myhobbie123/obsidian-blackboard-drawing-tool/releases/latest) and download `main.js`, `manifest.json` and `styles.css`.
+2. In your vault, create the folder `.obsidian/plugins/blackboard-text/` (the `.obsidian` folder is hidden — turn on hidden files in your file manager).
+3. Put the three files there, restart Obsidian and turn on **Blackboard Drawing Tool** in **Settings → Community plugins**.
+
+Don't enable this plugin together with the original Blackboard in the same vault — they conflict.
+
+## Quick start
+
+1. Open a note, press **Ctrl+P** and run **Blackboard Drawing Tool: Insert drawing**. A board appears in the note.
+2. Draw. Switch tools on the toolbar or with **Q / E / T**.
+3. To move the board, hover it, grab the **⠿** handle and drop it where you want. **Ctrl+Z** undoes the move.
+4. To wrap text around it, click **◧** (board left) or **◨** (board right). **↔** puts it back in the center.
 
 ## Fork notice
 
@@ -15,7 +55,7 @@ This is a fork of [Blackboard](https://github.com/jameswolensky/obsidian-blackbo
 - Guards against an untouched empty view overwriting an existing board, and against teardown clearing saved content.
 - A canvas rendering fix for invisible committed strokes caused by desynchronized canvas compositing.
 
-## Features / usage
+## Usage details
 
 Create a board with **Blackboard Drawing Tool: New drawing** in the command palette. Use **Insert drawing** or **Insert existing drawing** in a note or Canvas. Drawing files use the `.blackboard` extension and can also be opened directly.
 
@@ -69,19 +109,9 @@ Token order is flexible on read; edits write layout before size. Center is the d
 
 **Wrap text around boards while editing (experimental)** is off by default. Turning it on applies real floats in Live Preview and requests CM6 remeasurement after layout changes and board/pane resize. This opt-in can affect caret mapping, selection and scrolling: turn it off if those become unstable. Offline fixtures verify CSS and browser geometry; Obsidian runtime editing and PDF checks still need owner verification. To rerun the installed-Chrome offline fixture, use `node scripts/check-wrap-fixture.mjs` (no downloads; output in ignored `release/wrap-fixture/`).
 
-## Installation
+### Conflict with the original Blackboard
 
-### BRAT (recommended)
-
-1. Install and enable **BRAT** from Obsidian's community plugins.
-2. In BRAT, choose **Add Beta plugin** and enter `myhobbie123/obsidian-blackboard-drawing-tool`.
-3. Enable **Blackboard Drawing Tool** in your installed plugins.
-
-### Manual
-
-Download `main.js`, `manifest.json`, and `styles.css` from the [latest GitHub Release](https://github.com/myhobbie123/obsidian-blackboard-drawing-tool/releases/latest). Put all three files in `<vault>/.obsidian/plugins/blackboard-text/`, reload Obsidian, and enable **Blackboard Drawing Tool**.
-
-Do not enable this fork and the original Blackboard together in the same vault. Their plugin IDs differ, but both register the `blackboard-view` view type and `.blackboard` file extension, so they conflict.
+The plugin IDs differ, but both plugins register the `blackboard-view` view type and the `.blackboard` file extension, so only one of them can be enabled in a vault.
 
 ## Data & privacy
 
@@ -97,7 +127,7 @@ npm run build
 npm run check
 ```
 
-`npm run check` runs typechecking, lint, unit tests, the real CodeMirror drag harness in installed Chromium, and a production build. The offline harness uses Playwright mouse events and writes evidence to ignored `release/drag-fixture/`; run it alone with `npm run test:drag`. Set `CHROME_PATH` if Chromium is installed outside the standard Chrome location. No browser download or local HTTP server is used. The build writes the ignored root `main.js` with the license and third-party notices retained; `manifest.json` and `styles.css` are shipped directly from the repository. Development builds include a local reload bridge; production builds exclude it.
+`npm run check` runs typechecking, lint, unit tests and a production build (this is what CI runs). `npm run check:local` additionally runs the real CodeMirror drag harness in an installed Chromium; it needs full git history and writes evidence to ignored `release/drag-fixture/`. Run the harness alone with `npm run test:drag`. Set `CHROME_PATH` if Chromium is installed outside the standard Chrome location. No browser download or local HTTP server is used. The build writes the ignored root `main.js` with the license and third-party notices retained; `manifest.json` and `styles.css` are shipped directly from the repository. Development builds include a local reload bridge; production builds exclude it.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for local development.
 
